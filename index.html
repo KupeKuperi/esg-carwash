@@ -1270,8 +1270,8 @@ function renderDash(u, s){
   // Greeting
   document.getElementById('g-name').textContent = u.fullName.split(' ')[0];
 
-  // ── Streak Cycle (3 washes) ───────────────────────────────
-  const streakMax = u.streakMax || 3;
+  // ── Wash Cycle ────────────────────────────────────────────
+  const streakMax = u.streakMax || 9;
   const cycle     = parseInt(u.currentCycle) || 0;
   const isReward  = u.memberStatus === 'Reward Available';
   const total     = stats.lifetimeTotal || parseInt(u.totalWashes) || 0;
@@ -1325,7 +1325,7 @@ function renderDash(u, s){
    9-WASH STEP INDICATOR (Blue)
 ================================================================ */
 function buildCycleSteps(cycle, isReward, streakMax){
-  const MAX = streakMax || 3;
+  const MAX = streakMax || 9;
   const row = document.getElementById('step-row');
   row.innerHTML = '';
 
