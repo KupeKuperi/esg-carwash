@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ESG Car Wash — Loyalty</title>
+<!-- ── PWA / Home-screen meta ── -->
+<meta name="apple-mobile-web-app-capable"            content="yes">
+<meta name="apple-mobile-web-app-status-bar-style"   content="black-translucent">
+<meta name="apple-mobile-web-app-title"              content="ESG Rewards">
+<meta name="mobile-web-app-capable"                  content="yes">
+<meta name="theme-color"                             content="#020617">
+<meta name="application-name"                        content="ESG Rewards">
+<link rel="apple-touch-icon" href="https://drive.google.com/thumbnail?sz=w500&id=1ldsE4D9iyiwK5zE2hdweZqGHvIehp336">
+<link rel="manifest" href="manifest.json">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ================================================================
+   TOKENS & RESET
+================================================================ */
+*, *::before, *::after {
+  box-sizing: border-box; margin: 0; padding: 0;
+  -webkit-tap-highlight-color: transparent;   /* remove grey flash on tap */
+  -webkit-touch-callout: none;                /* disable callout on long-press */
+}
+
+:root {
+  /* core palette */
+  --bg:           #020617;
+  --bg-2:         #0f172a;
+  --accent:       #38bdf8;    /* electric blue — 9-wash cycle */
+  --accent-dim:   rgba(56,189,248,0.13);
+  --accent-glow:  rgba(56,189,248,0.30);
+  --streak:       #10b981;    /* emerald green — monthly streak */
+  --streak-dim:   rgba(16,185,129,0.13);
+  --streak-glow:  rgba(16,185,129,0.30);
+  --gold:         #f59e0b;    /* gold — VIP unlocked */
+  --gold-dim:     rgba(245,158,11,0.15);
+  --gold-glow:    rgba(245,158,11,0.35);
+  --card:         rgba(30,41,59,0.70);
+  --border:       rgba(255,255,255,0.08);
+  --text:         #f1f5f9;
+  --text-2:       #94a3b8;
+  --text-3:       #475569;
+  --ok:           #22c55e;
+  --err:          #ef4444;
+  --font:         'Inter', system-ui, sans-serif;
+  --r-card:       20px;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  /* prevent elastic bounce-scroll on iOS */
+  overscroll-behavior: none;
+}
+
+/* Momentum scrolling on all scrollable containers */
+.dash-body, .auth-card, .view {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Minimum 50 px touch target on every interactive element */
+.btn       { min-height: 50px; }
+.tab       { min-height: 44px; }
+.logout-btn, .back-btn, .mgr-logout { min-height: 44px; }
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 12% 40%, rgba(56,189,248,0.04) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 88% 15%, rgba(16,185,129,0.04) 0%, transparent 70%);
+}
+
+/* ================================================================
+   APP SHELL & VIEWS
+================================================================ */
+#app { position: relative; min-height: 100vh; z-index: 1; }
+
+.view {
+  visibility: hidden; opacity: 0;
+  transform: scale(0.975) translateY(8px);
+  transition: opacity .4s ease, transform .4s ease, visibility .4s;
+  position: absolute; top: 0; left: 0; right: 0; min-height: 100vh;
+  pointer-events: none;
+}
+.view.active {
+  visibility: visible; opacity: 1;
+  transform: scale(1) translateY(0);
+  position: relative; pointer-events: all;
+}
+
+/* ================================================================
+   GLASS CARD
+================================================================ */
+.card {
+  background: var(--card);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+}
+
+/* ================================================================
+   BUTTONS
+================================================================ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px; padding: 15px 28px; border-radius: 14px;
+  font-size: 15px; font-weight: 700; cursor: pointer; border: none;
+  transition: transform .2s, box-shadow .2s, opacity .2s;
+  font-family: var(--font); position: relative; overflow: hidden;
+}
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary {
+  background: linear-gradient(135deg,#0ea5e9,#38bdf8);
+  color: #020617; box-shadow: 0 4px 20px var(--accent-glow);
+}
+.btn-primary:not(:disabled):hover  { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(56,189,248,.45); }
+.btn-primary:not(:disabled):active { transform: translateY(0); }
+.btn-ghost {
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--border); backdrop-filter: blur(8px);
+}
+.btn-ghost:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+
+@keyframes pulse-glow {
+  0%,100% { box-shadow: 0 4px 20px var(--accent-glow); }
+  50%      { box-shadow: 0 8px 38px rgba(56,189,248,.55); transform: scale(1.015); }
+}
+.btn-pulse { animation: pulse-glow 2.8s ease-in-out infinite; }
+
+/* ================================================================
+   SPINNER
+================================================================ */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  display: inline-block; width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,.2); border-top-color: currentColor;
+  border-radius: 50%; animation: spin .75s linear infinite;
+}
+.btn-primary .spinner { border-top-color:#020617; border-color:rgba(2,6,23,.2); }
+
+/* ================================================================
+   VIEW: WELCOME
+================================================================ */
+#view-welcome {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  min-height: 100vh; padding: 48px 28px; text-align: center;
+}
+.welcome-logo {
+  width: 250px; height: auto;
+  filter: drop-shadow(0 0 15px rgba(56,189,248,0.30));
+  margin-bottom: 44px; user-select: none;
+}
+.welcome-headline {
+  font-size: clamp(30px,7vw,48px); font-weight: 900; line-height: 1.15;
+  background: linear-gradient(140deg,#f1f5f9 30%,var(--accent) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 14px;
+}
+.welcome-sub {
+  font-size: 16px; color: var(--text-2); max-width: 300px;
+  line-height: 1.65; margin-bottom: 52px;
+}
+.welcome-cta { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 320px; }
+
+/* ================================================================
+   VIEW: AUTH
+================================================================ */
+#view-auth {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; padding: 40px 24px;
+}
+.auth-card { width: 100%; max-width: 400px; padding: 36px 32px; }
+
+.back-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: none; border: none; color: var(--text-2);
+  font-size: 14px; cursor: pointer; margin-bottom: 28px;
+  padding: 0; transition: color .2s; font-family: var(--font);
+}
+.back-btn:hover { color: var(--accent); }
+.back-btn svg { transition: transform .2s; }
+.back-btn:hover svg { transform: translateX(-3px); }
+
+.auth-tabs {
+  display: flex; gap: 4px;
+  background: rgba(15,23,42,.9); border-radius: 11px;
+  padding: 4px; margin-bottom: 30px;
+}
+.tab {
+  flex: 1; padding: 10px; border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all .2s; background: transparent;
+  color: var(--text-2); font-family: var(--font);
+}
+.tab.on { background: var(--accent); color: #020617; }
+
+.auth-section { display: none; }
+.auth-section.on { display: block; }
+
+.auth-title { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+.auth-sub   { font-size: 14px; color: var(--text-2); margin-bottom: 28px; line-height: 1.55; }
+
+.field { margin-bottom: 18px; }
+.field label {
+  display: block; font-size: 11px; font-weight: 700;
+  color: var(--text-2); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px;
+}
+.field input {
+  width: 100%; padding: 14px 16px;
+  background: rgba(15,23,42,.85); border: 1px solid var(--border);
+  border-radius: 12px; color: var(--text); font-size: 16px;
+  outline: none; transition: border-color .2s, box-shadow .2s; font-family: var(--font);
+}
+.field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(56,189,248,.12); }
+.field input::placeholder { color: var(--text-3); }
+.field-err { font-size: 12px; color: var(--err); margin-top: 7px; display: none; }
+.field-err.show { display: block; }
+
+/* ================================================================
+   DASHBOARD — HEADER
+================================================================ */
+.dash-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 22px;
+  background: rgba(2,6,23,.92);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+}
+.header-logo {
+  width: 100px; height: auto;
+  filter: drop-shadow(0 0 8px var(--accent-glow));
+  cursor: pointer; user-select: none; -webkit-user-select: none;
+}
+.header-right { display: flex; align-items: center; gap: 12px; }
+.uid-chip {
+  font-size: 11px; font-weight: 700; color: var(--accent);
+  letter-spacing: .07em; padding: 5px 12px;
+  background: var(--accent-dim); border-radius: 100px;
+}
+.logout-btn {
+  padding: 7px 15px; border-radius: 9px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-2); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all .2s; font-family: var(--font);
+}
+.logout-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ================================================================
+   DASHBOARD — BODY
+================================================================ */
+.dash-body { padding: 24px; max-width: 480px; margin: 0 auto; }
+
+.greeting { margin-bottom: 26px; }
+.greeting-label { font-size: 12px; color: var(--text-2); font-weight: 600; letter-spacing: .07em; text-transform: uppercase; }
+.greeting-name  { font-size: 28px; font-weight: 800; margin-top: 3px; }
+
+.section-label {
+  font-size: 11px; font-weight: 700; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: .09em; margin-bottom: 20px;
+}
+
+/* ── 9-Wash Cycle Tracker (Blue) ── */
+.tracker-card { padding: 24px 20px; margin-bottom: 16px; }
+
+.step-row { display: flex; align-items: center; width: 100%; }
+.step-node { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; }
+
+.step-dot {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(71,85,105,.35); border: 2px solid var(--text-3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: var(--text-3);
+  transition: background .4s, border-color .4s, box-shadow .4s, color .4s;
+  position: relative; z-index: 2;
+}
+.step-dot.done {
+  background: linear-gradient(135deg,#0ea5e9,#38bdf8);
+  border-color: var(--accent); color: #020617;
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+.step-dot.now { border-color: var(--accent); box-shadow: 0 0 0 5px rgba(56,189,248,.12), 0 0 10px var(--accent-glow); }
+
+.step-line { flex: 1; height: 2px; background: var(--text-3); transition: background .4s; }
+.step-line.done { background: linear-gradient(90deg,#0ea5e9,#38bdf8); }
+
+.gift-dot {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(71,85,105,.35); border: 2px solid var(--text-3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; transition: background .4s, border-color .4s, box-shadow .4s;
+}
+@keyframes gift-pulse {
+  0%,100% { box-shadow: 0 0 10px rgba(245,158,11,.5), 0 0 24px rgba(245,158,11,.25); }
+  50%      { box-shadow: 0 0 18px rgba(245,158,11,.8), 0 0 40px rgba(245,158,11,.45); }
+}
+.gift-dot.lit { background: linear-gradient(135deg,#f59e0b,#fbbf24); border-color: #f59e0b; animation: gift-pulse 2s ease-in-out infinite; }
+
+.reward-banner {
+  display: none; align-items: center; justify-content: center;
+  gap: 10px; padding: 11px 20px;
+  background: linear-gradient(135deg,rgba(245,158,11,.15),rgba(252,211,77,.08));
+  border: 1px solid rgba(245,158,11,.35); border-radius: 100px;
+  font-size: 13px; font-weight: 700; color: #fbbf24; margin-top: 20px;
+}
+.reward-banner.show { display: flex; }
+
+.stat-row { display: flex; margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px; }
+.stat { flex: 1; text-align: center; }
+.stat + .stat { border-left: 1px solid var(--border); }
+.stat-val { font-size: 24px; font-weight: 800; color: var(--accent); }
+.stat-lbl { font-size: 10px; color: var(--text-2); text-transform: uppercase; letter-spacing: .07em; margin-top: 2px; }
+
+/* ── Monthly Streak Card (Emerald) ── */
+.streak-card { padding: 24px 20px; margin-bottom: 16px; }
+.streak-section-label { /* override color for streak */
+  font-size: 11px; font-weight: 700; color: #34d399;
+  text-transform: uppercase; letter-spacing: .09em; margin-bottom: 20px;
+}
+
+.streak-row { display: flex; align-items: center; width: 100%; margin-bottom: 18px; }
+.streak-node { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; }
+
+.streak-dot {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(71,85,105,.35); border: 2px solid var(--text-3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; transition: all .4s;
+}
+.streak-dot.done {
+  background: linear-gradient(135deg,#059669,#10b981);
+  border-color: var(--streak); box-shadow: 0 0 10px var(--streak-glow);
+}
+@keyframes streak-pulse {
+  0%,100% { box-shadow: 0 0 10px var(--streak-glow), 0 0 24px rgba(16,185,129,.2); }
+  50%      { box-shadow: 0 0 18px rgba(16,185,129,.7), 0 0 40px rgba(16,185,129,.4); }
+}
+.streak-dot.done.now { animation: streak-pulse 2.2s ease-in-out infinite; }
+
+.streak-line { flex: 1; height: 2px; background: var(--text-3); transition: background .4s; }
+.streak-line.done { background: linear-gradient(90deg,#059669,#10b981); }
+
+/* VIP unlocked badge */
+.vip-badge {
+  display: none; align-items: center; justify-content: center;
+  gap: 10px; padding: 14px 20px;
+  background: linear-gradient(135deg,rgba(245,158,11,.18),rgba(251,191,36,.08));
+  border: 1px solid rgba(245,158,11,.45); border-radius: 14px;
+  margin-top: 4px;
+}
+.vip-badge.show { display: flex; }
+
+@keyframes vip-glow {
+  0%,100% { box-shadow: 0 0 14px rgba(245,158,11,.3), 0 0 32px rgba(245,158,11,.15); }
+  50%      { box-shadow: 0 0 24px rgba(245,158,11,.55), 0 0 48px rgba(245,158,11,.3); }
+}
+.vip-badge.show { animation: vip-glow 2.5s ease-in-out infinite; }
+
+.vip-icon { font-size: 26px; }
+.vip-text-wrap { display: flex; flex-direction: column; gap: 2px; }
+.vip-title { font-size: 14px; font-weight: 800; color: #fbbf24; letter-spacing: .04em; }
+.vip-sub   { font-size: 11px; color: rgba(251,191,36,.75); font-weight: 500; }
+
+/* Progress label row */
+.streak-info-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; color: var(--text-2); margin-top: 4px;
+}
+.streak-count { font-weight: 700; color: #34d399; font-size: 15px; }
+
+/* ── QR Card ── */
+.qr-card { padding: 28px 24px; text-align: center; margin-bottom: 16px; }
+.qr-wrap { width: 170px; height: 170px; margin: 0 auto 20px; border-radius: 14px; overflow: hidden; background: #fff; padding: 8px; }
+.qr-img  { width: 100%; height: 100%; object-fit: contain; display: block; }
+.qr-uid  { font-size: 20px; font-weight: 900; color: var(--accent); letter-spacing: .08em; }
+.qr-divider { width: 52px; height: 2px; background: linear-gradient(90deg,transparent,var(--accent),transparent); margin: 14px auto; }
+.qr-since { font-size: 13px; color: var(--text-2); margin-bottom: 14px; }
+
+.status-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 16px; border-radius: 100px;
+  font-size: 12px; font-weight: 700; letter-spacing: .05em;
+}
+.status-active { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.3); color: #4ade80; }
+.status-reward { background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.3); color: #fbbf24; }
+.status-pip { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* ── Recent Activity / Wash History ── */
+.history-card { padding: 24px 20px; margin-bottom: 20px; }
+
+.history-list { display: flex; flex-direction: column; gap: 0; }
+
+.history-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border);
+  transition: opacity .2s;
+}
+.history-item:last-child { border-bottom: none; }
+
+.hist-icon {
+  width: 36px; height: 36px; border-radius: 10px; flex: 0 0 36px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+.hist-icon-standard { background: var(--accent-dim); }
+.hist-icon-reward   { background: var(--gold-dim); }
+
+.hist-text  { flex: 1; }
+.hist-type  { font-size: 14px; font-weight: 600; color: var(--text); }
+.hist-time  { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+.hist-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: .06em;
+  padding: 3px 9px; border-radius: 100px; text-transform: uppercase;
+}
+.hist-badge-reward { background: var(--gold-dim); border: 1px solid rgba(245,158,11,.3); color: #fbbf24; }
+
+.history-empty {
+  text-align: center; padding: 28px 16px;
+  color: var(--text-3); font-size: 14px; line-height: 1.6;
+}
+.history-empty-icon { font-size: 32px; margin-bottom: 10px; }
+
+/* ================================================================
+   SKELETON LOADER
+================================================================ */
+@keyframes shimmer {
+  0%   { background-position: -300% 0; }
+  100% { background-position:  300% 0; }
+}
+.sk {
+  background: linear-gradient(90deg,
+    rgba(30,41,59,.9) 25%, rgba(56,189,248,.07) 50%, rgba(30,41,59,.9) 75%
+  );
+  background-size: 300% 100%;
+  animation: shimmer 1.9s ease-in-out infinite;
+  border-radius: 8px;
+}
+.sk-title  { height: 30px; width: 50%; margin-bottom: 24px; }
+.sk-card-s { height: 130px; border-radius: 18px; margin-bottom: 14px; }
+.sk-card-m { height: 160px; border-radius: 18px; margin-bottom: 14px; }
+.sk-card-l { height: 220px; border-radius: 18px; margin-bottom: 14px; }
+.sk-qr-box { width: 160px; height: 160px; border-radius: 14px; margin: 0 auto 18px; }
+.sk-line   { height: 14px; margin: 0 auto 8px; }
+
+#view-dashboard.loading      .dash-real { display: none; }
+#view-dashboard:not(.loading) .dash-skel { display: none; }
+
+/* ================================================================
+   TOAST
+================================================================ */
+#toasts {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  z-index: 9999; display: flex; flex-direction: column; gap: 8px;
+  align-items: center; pointer-events: none; width: 90%; max-width: 360px;
+}
+.toast {
+  width: 100%; padding: 13px 20px; border-radius: 13px;
+  font-size: 14px; font-weight: 600; text-align: center;
+  backdrop-filter: blur(14px);
+  opacity: 0; transform: translateY(16px);
+  transition: opacity .3s, transform .3s; pointer-events: all;
+}
+.toast.in  { opacity: 1; transform: translateY(0); }
+.toast-ok  { background: rgba(34,197,94,.18);  border: 1px solid rgba(34,197,94,.35);  color: #4ade80; }
+.toast-err { background: rgba(239,68,68,.18);   border: 1px solid rgba(239,68,68,.35);   color: #f87171; }
+.toast-inf { background: rgba(56,189,248,.13);  border: 1px solid rgba(56,189,248,.3);   color: var(--accent); }
+.toast-wow { background: rgba(245,158,11,.18);  border: 1px solid rgba(245,158,11,.35);  color: #fbbf24; font-size: 16px; }
+.toast-str { background: rgba(16,185,129,.18);  border: 1px solid rgba(16,185,129,.35);  color: #34d399; font-size: 15px; }
+
+/* ================================================================
+   ADMIN PANEL
+================================================================ */
+#admin-panel { position: fixed; bottom: 80px; right: 22px; z-index: 900; display: none; }
+#admin-panel.show { display: block; }
+.admin-btn {
+  display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 13px;
+  background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3);
+  color: #f87171; font-size: 13px; font-weight: 700; cursor: pointer;
+  backdrop-filter: blur(12px); transition: all .2s; font-family: var(--font);
+}
+.admin-btn:hover { background: rgba(239,68,68,.22); }
+
+/* ================================================================
+   RESPONSIVE
+================================================================ */
+@media (max-width: 380px) {
+  .step-dot   { width: 24px; height: 24px; font-size: 9px; }
+  .gift-dot   { width: 28px; height: 28px; font-size: 14px; }
+  .streak-dot { width: 28px; height: 28px; font-size: 13px; }
+  .dash-body  { padding: 16px; }
+  .auth-card  { padding: 28px 20px; }
+}
+
+/* ================================================================
+   BRANDING TOKENS — Deep Slate + Electric Blue
+================================================================ */
+:root {
+  --slate:     #353C4C;        /* Deep Slate  rgb(53,60,76)  */
+  --slate-2:   #2a303e;
+  --eblue:     #008CCF;        /* Electric Blue rgb(0,140,207) */
+  --eblue-dim: rgba(0,140,207,0.14);
+  --eblue-glow:rgba(0,140,207,0.35);
+}
+
+/* ================================================================
+   NEWS BAR
+================================================================ */
+#news-bar {
+  width: 100%;
+  height: 38px; overflow: hidden;
+  display: none; /* shown by JS after config loads */
+  align-items: center;
+  background: linear-gradient(90deg, var(--slate-2) 0%, rgba(0,140,207,.18) 50%, var(--slate-2) 100%);
+  border-bottom: 1px solid rgba(0,140,207,0.35);
+}
+@keyframes bar-pulse {
+  0%,100%{ box-shadow: inset 0 -1px 0 rgba(0,140,207,.35); }
+  50%    { box-shadow: inset 0 -1px 0 rgba(0,140,207,.85), 0 2px 14px rgba(0,140,207,.25); }
+}
+#news-bar { animation: bar-pulse 3.5s ease-in-out infinite; }
+
+.news-icon {
+  flex: 0 0 auto; padding: 0 12px;
+  font-size: 14px; line-height: 1;
+  color: var(--eblue);
+}
+.news-ticker-wrap {
+  flex: 1; overflow: hidden; position: relative;
+}
+.news-ticker {
+  white-space: nowrap;
+  font-size: 12px; font-weight: 600; color: #e2e8f0; letter-spacing: .04em;
+  animation: ticker-scroll 28s linear infinite;
+  display: inline-block; padding-left: 100%;
+}
+.news-ticker.short {
+  animation: none;
+  padding-left: 0;
+  color: #e2e8f0;
+}
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-200%); }
+}
+
+/* ================================================================
+   REWARD SELECTION (3/3 streak complete)
+================================================================ */
+.reward-select-section { margin-bottom: 16px; }
+
+.congrats-banner {
+  text-align: center; padding: 20px 16px 14px;
+  background: linear-gradient(135deg, rgba(53,60,76,.85), rgba(0,140,207,.12));
+  border: 1px solid rgba(0,140,207,.35);
+  border-radius: 18px; margin-bottom: 14px;
+}
+@keyframes congrats-glow {
+  0%,100%{ box-shadow:0 0 12px rgba(0,140,207,.2); }
+  50%    { box-shadow:0 0 28px rgba(0,140,207,.5); }
+}
+.congrats-banner { animation: congrats-glow 2.5s ease-in-out infinite; }
+
+.congrats-trophy { font-size: 40px; margin-bottom: 8px; }
+.congrats-title  {
+  font-size: 20px; font-weight: 900; letter-spacing: .06em;
+  background: linear-gradient(135deg, #e2e8f0, var(--eblue));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 4px;
+}
+.congrats-sub { font-size: 13px; color: var(--text-2); }
+
+.reward-cards {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 10px;
+}
+@media(max-width:400px){
+  .reward-cards { grid-template-columns: 1fr; }
+}
+
+.reward-card {
+  background: rgba(53,60,76,.75);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0,140,207,.28);
+  border-radius: 16px; padding: 18px 12px;
+  cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; text-align: center; gap: 8px;
+  transition: all .25s; font-family: var(--font);
+  min-height: 50px; /* touch target */
+}
+.reward-card:hover:not(:disabled) {
+  border-color: var(--eblue);
+  box-shadow: 0 0 18px var(--eblue-glow);
+  transform: translateY(-2px);
+}
+.reward-card:disabled { opacity: .5; cursor: not-allowed; }
+.rc-icon  { font-size: 28px; line-height: 1; }
+.rc-title { font-size: 14px; font-weight: 800; color: var(--text); }
+.rc-sub   { font-size: 11px; color: var(--text-2); line-height: 1.4; }
+.rc-loading { font-size: 12px; color: var(--eblue); font-weight: 600; }
+
+/* Landscape: shrink welcome logo so it fits without scrolling */
+@media (max-height: 500px) and (orientation: landscape) {
+  .welcome-logo      { width: 120px; margin-bottom: 20px; }
+  .welcome-headline  { font-size: 22px; margin-bottom: 8px; }
+  .welcome-sub       { margin-bottom: 24px; font-size: 14px; }
+  #view-welcome      { padding: 24px 28px 80px; justify-content: flex-start; padding-top: 40px; }
+  .header-logo       { width: 70px; }
+}
+
+@media (orientation: landscape) {
+  /* Keep header logo centred vertically in the sticky bar */
+  .dash-header  { align-items: center; }
+  .header-logo  { width: 80px; }
+}
+
+/* ================================================================
+   INSTALL BANNER
+================================================================ */
+#install-banner {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 8000;
+  padding: 16px 20px 24px;          /* extra bottom for home-bar */
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 -4px 32px rgba(0,0,0,0.5);
+
+  /* start below the fold */
+  transform: translateY(110%);
+  opacity: 0;
+  transition: transform .48s cubic-bezier(.22,.68,0,1.2), opacity .4s ease;
+  pointer-events: none;
+}
+#install-banner.visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: all;
+}
+
+.banner-inner {
+  display: flex; align-items: flex-start; gap: 14px;
+  max-width: 480px; margin: 0 auto;
+  position: relative;
+}
+.banner-app-icon {
+  width: 52px; height: 52px; border-radius: 12px; flex: 0 0 52px;
+  overflow: hidden; border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.banner-app-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.banner-copy { flex: 1; }
+.banner-title {
+  font-size: 14px; font-weight: 800; color: var(--text);
+  margin-bottom: 5px; line-height: 1.3;
+}
+.banner-body {
+  font-size: 12px; color: var(--text-2); line-height: 1.55;
+}
+.banner-share-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 5px; vertical-align: middle;
+  background: rgba(56,189,248,0.18); border: 1px solid rgba(56,189,248,0.35);
+  margin: 0 2px;
+}
+.banner-share-icon svg { width: 11px; height: 11px; }
+
+.banner-close {
+  position: absolute; top: -2px; right: 0;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(71,85,105,0.5); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-2); font-size: 16px; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .2s, color .2s; flex: 0 0 28px;
+}
+.banner-close:hover { background: rgba(239,68,68,.3); color: #f87171; }
+
+/* Ensure the welcome screen has room above the banner */
+#view-welcome { padding-bottom: 120px; }
+
+/* ================================================================
+   LANGUAGE SWITCHER
+================================================================ */
+.lang-switcher {
+  display: inline-flex; align-items: center;
+  background: var(--card);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border); border-radius: 100px;
+  padding: 3px 4px; gap: 2px;
+}
+.lang-btn {
+  background: none; border: none;
+  color: var(--text-3); font-size: 12px; font-weight: 700;
+  cursor: pointer; padding: 4px 10px; border-radius: 100px;
+  transition: all .2s; font-family: var(--font); line-height: 1;
+}
+.lang-btn.lang-active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+/* Welcome-view floating switcher */
+#lang-welcome {
+  position: absolute; top: 20px; right: 20px; z-index: 10;
+}
+/* Dashboard header variant — compact */
+#lang-dash .lang-btn { padding: 4px 8px; font-size: 11px; }
+</style>
+</head>
+<body>
+<!-- ── Install Banner (shown only in browser, not standalone) ── -->
+<div id="install-banner" role="complementary" aria-label="Install app banner">
+  <div class="banner-inner">
+    <div class="banner-app-icon">
+      <img src="https://drive.google.com/thumbnail?sz=w500&id=1ldsE4D9iyiwK5zE2hdweZqGHvIehp336" alt="ESG">
+    </div>
+    <div class="banner-copy">
+      <div class="banner-title">✨ Install ESG Rewards for easy Access!</div>
+      <div class="banner-body">
+        Tap the
+        <span class="banner-share-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
+          </svg>
+        </span>
+        <strong>Share</strong> icon then <strong>"Add to Home Screen"</strong> to never lose your rewards progress.
+      </div>
+    </div>
+    <button class="banner-close" onclick="dismissBanner()" aria-label="Dismiss">×</button>
+  </div>
+</div>
+
+<div id="app">
+
+<div id="toasts"></div>
+<div id="admin-panel">
+  <button class="admin-btn" onclick="adminAddWash()">🔧 Record Test Wash</button>
+</div>
+
+<!-- ================================================================
+     VIEW: WELCOME
+================================================================ -->
+<div id="view-welcome" class="view active" style="position:relative;">
+  <!-- Language switcher — top-right corner -->
+  <div class="lang-switcher" id="lang-welcome">
+    <button class="lang-btn lang-active" data-lang="ge" onclick="setLanguage('ge')">🇬🇪 GE</button>
+    <button class="lang-btn"             data-lang="en" onclick="setLanguage('en')">🇬🇧 EN</button>
+  </div>
+
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:48px 28px;text-align:center;">
+    <img src="https://drive.google.com/thumbnail?sz=w1000&id=1ldsE4D9iyiwK5zE2hdweZqGHvIehp336"
+         alt="ESG Car Wash" class="welcome-logo" draggable="false">
+    <h1 class="welcome-headline">
+      <span data-i18n="headline1">გარეცხე.</span><br>
+      <span data-i18n="headline2">გამარჯვდი.</span>
+    </h1>
+    <p class="welcome-sub" data-i18n="welcome.sub">პრემიუმ ავტოსამრეცხაო ლოიალობის პროგრამა — ყოველი რეცხვა გიახლოებს უფასოსთან.</p>
+    <div class="welcome-cta">
+      <button class="btn btn-primary btn-pulse" onclick="goAuth('login')" data-i18n="btn.signin">✦  შესვლა</button>
+      <button class="btn btn-ghost"             onclick="goAuth('register')" data-i18n="btn.create">ანგარიშის შექმნა</button>
+    </div>
+    <span
+      id="mgr-link"
+      onclick="openManagerPortal()"
+      style="position:absolute;bottom:18px;right:22px;font-size:10px;color:rgba(71,85,105,0.4);cursor:pointer;user-select:none;letter-spacing:.05em;"
+    >staff</span>
+  </div>
+</div>
+
+<!-- ================================================================
+     VIEW: AUTH
+================================================================ -->
+<div id="view-auth" class="view">
+  <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px 24px;">
+    <div class="card auth-card">
+      <button class="back-btn" onclick="showView('view-welcome')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        <span data-i18n="auth.back">უკან</span>
+      </button>
+      <div class="auth-tabs">
+        <button class="tab on" id="tab-login"    onclick="authMode('login')"    data-i18n="tab.login">შესვლა</button>
+        <button class="tab"    id="tab-register" onclick="authMode('register')" data-i18n="tab.register">რეგისტრაცია</button>
+      </div>
+
+      <!-- Login -->
+      <div class="auth-section on" id="sec-login">
+        <div class="auth-title" data-i18n="login.title">კვლავ გამარჯობა</div>
+        <div class="auth-sub"   data-i18n="login.sub">შეიყვანეთ ტელეფონი სისტემაში შესასვლელად.</div>
+        <div class="field">
+          <label for="l-phone" data-i18n="label.phone">ტელეფონის ნომერი</label>
+          <input type="tel" id="l-phone" data-i18n-ph="ph.phone" placeholder="555 000 000"
+                 autocomplete="tel" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="tel">
+          <div class="field-err" id="l-err"></div>
+        </div>
+        <button class="btn btn-primary" style="width:100%" id="btn-login" onclick="doLogin()" data-i18n="btn.login">შესვლა</button>
+      </div>
+
+      <!-- Register -->
+      <div class="auth-section" id="sec-register">
+        <div class="auth-title" data-i18n="register.title">შემოგვიერთდი</div>
+        <div class="auth-sub"   data-i18n="register.sub">შექმენი ლოიალობის ანგარიში და დაიწყე საჩუქარიების დაგროვება.</div>
+        <div class="field">
+          <label for="r-name" data-i18n="label.name">სრული სახელი</label>
+          <input type="text" id="r-name" data-i18n-ph="ph.name" placeholder="გიორგი ბერიძე"
+                 autocomplete="name" autocorrect="off" spellcheck="false">
+        </div>
+        <div class="field">
+          <label for="r-phone" data-i18n="label.phone">ტელეფონის ნომერი</label>
+          <input type="tel" id="r-phone" data-i18n-ph="ph.phone" placeholder="555 000 000"
+                 autocomplete="tel" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="tel">
+          <div class="field-err" id="r-err"></div>
+        </div>
+        <button class="btn btn-primary" style="width:100%" id="btn-reg" onclick="doRegister()" data-i18n="btn.register">ანგარიშის შექმნა</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     VIEW: DASHBOARD
+================================================================ -->
+<div id="view-dashboard" class="view loading">
+
+  <!-- Header (always visible) -->
+  <header class="dash-header">
+    <img src="https://drive.google.com/thumbnail?sz=w1000&id=1ldsE4D9iyiwK5zE2hdweZqGHvIehp336"
+         alt="ESG" class="header-logo" id="header-logo" draggable="false">
+    <div class="header-right">
+      <span class="uid-chip" id="h-uid"></span>
+      <div class="lang-switcher" id="lang-dash">
+        <button class="lang-btn" data-lang="ge" onclick="setLanguage('ge')">🇬🇪</button>
+        <button class="lang-btn" data-lang="en" onclick="setLanguage('en')">🇬🇧</button>
+      </div>
+      <button class="logout-btn" onclick="doLogout()" data-i18n="btn.logout">გასვლა</button>
+    </div>
+  </header>
+
+  <!-- ── News Bar (dynamic from Admin sheet) ── -->
+  <div id="news-bar">
+    <div class="news-icon">📡</div>
+    <div class="news-ticker-wrap">
+      <div class="news-ticker" id="news-ticker">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ── Skeleton ── -->
+  <div class="dash-skel" style="padding:24px;max-width:480px;margin:0 auto">
+    <div class="sk sk-title"></div>
+    <div class="sk sk-card-s"></div>
+    <div class="sk sk-card-s"></div>
+    <div class="card" style="padding:26px;margin-bottom:14px;text-align:center">
+      <div class="sk sk-qr-box"></div>
+      <div class="sk sk-line" style="width:38%;margin-bottom:8px"></div>
+      <div class="sk sk-line" style="width:55%"></div>
+    </div>
+    <div class="sk sk-card-m"></div>
+  </div>
+
+  <!-- ── Real Content ── -->
+  <div class="dash-real dash-body">
+
+    <!-- Greeting -->
+    <div class="greeting">
+      <div class="greeting-label" data-i18n="greeting.lbl">კვლავ გამარჯობა</div>
+      <div class="greeting-name" id="g-name"></div>
+    </div>
+
+    <!-- ── Reward Selection (shown when streak complete) ── -->
+    <div class="reward-select-section" id="reward-select" style="display:none">
+      <div class="congrats-banner">
+        <div class="congrats-trophy">🏆</div>
+        <div class="congrats-title" data-i18n="congrats.title">CONGRATULATIONS!</div>
+        <div class="congrats-sub"   data-i18n="congrats.sub">Choose your reward below</div>
+      </div>
+      <div class="reward-cards">
+        <button class="reward-card" id="rc-nano"   onclick="doClaimReward('NANO_WAX')">
+          <div class="rc-icon">✨</div>
+          <div class="rc-title" data-i18n="reward.nano.title">Free Nano-Wax</div>
+          <div class="rc-sub"   data-i18n="reward.nano.sub">Premium surface protection</div>
+        </button>
+        <button class="reward-card" id="rc-detail" onclick="doClaimReward('HALF_OFF_DETAIL')">
+          <div class="rc-icon">🔖</div>
+          <div class="rc-title" data-i18n="reward.detail.title">50% Off Detail</div>
+          <div class="rc-sub"   data-i18n="reward.detail.sub">Full interior & exterior detail</div>
+        </button>
+        <button class="reward-card" id="rc-wash"   onclick="doClaimReward('FREE_WASH')">
+          <div class="rc-icon">🫧</div>
+          <div class="rc-title" data-i18n="reward.wash.title">+1 Free Wash</div>
+          <div class="rc-sub"   data-i18n="reward.wash.sub">Added to your balance</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Cycle Tracker (hidden while reward pending) -->
+    <div class="card tracker-card" id="tracker-card">
+      <div class="section-label" data-i18n="cycle.lbl">სარეცხი პროგრესი — უფასო ციკლი</div>
+      <div class="step-row" id="step-row"></div>
+      <div class="reward-banner" id="reward-banner" data-i18n="reward.txt">🎁 &nbsp;უფასო რეცხვა ხელმისაწვდომია!</div>
+      <div class="stat-row">
+        <div class="stat">
+          <div class="stat-val" id="s-total">0</div>
+          <div class="stat-lbl" data-i18n="stat.lbl.lifetime">სულ</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val" id="s-cycle">0</div>
+          <div class="stat-lbl" data-i18n="stat.lbl.cycle">ამ ციკლში</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val" id="s-left">9</div>
+          <div class="stat-lbl" data-i18n="stat.lbl.left">უფასომდე</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monthly Streak Card -->
+    <div class="card streak-card">
+      <div class="streak-section-label" data-i18n="streak.lbl">✦ თვიური სერია — VIP სალონის წმენდა</div>
+      <div class="streak-row" id="streak-row"></div>
+
+      <!-- Progress label (hidden when VIP unlocked) -->
+      <div class="streak-info-row" id="streak-info-row">
+        <span id="streak-info-text">0 of 4 washes this month</span>
+        <span class="streak-count" id="streak-count">0/4</span>
+      </div>
+
+      <!-- VIP Unlocked badge (hidden by default) -->
+      <div class="vip-badge" id="vip-badge">
+        <span class="vip-icon">👑</span>
+        <div class="vip-text-wrap">
+          <div class="vip-title" data-i18n="vip.title">VIP საჩუქარი ᲒᲐᲜᲑᲚᲝᲙᲘᲚᲘᲐ</div>
+          <div class="vip-sub"   data-i18n="vip.sub">სალონის წმენდა — მზადაა გასაცვლელად</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Identity Card -->
+    <div class="card qr-card">
+      <div class="section-label" data-i18n="qr.lbl">წევრის ბარათი</div>
+      <div class="qr-wrap"><img id="qr-img" class="qr-img" src="" alt="QR Code"></div>
+      <div class="qr-uid"   id="qr-uid"></div>
+      <div class="qr-divider"></div>
+      <div class="qr-since" id="qr-since"></div>
+      <span class="status-pill status-active" id="status-pill">
+        <span class="status-pip"></span>
+        <span id="status-txt">Active Member</span>
+      </span>
+    </div>
+
+    <!-- Recent Activity / Wash History -->
+    <div class="card history-card">
+      <div class="section-label" data-i18n="history.lbl">ბოლო აქტივობა</div>
+      <div class="history-list" id="history-list"></div>
+    </div>
+
+  </div><!-- end dash-real -->
+</div><!-- end view-dashboard -->
+
+</div><!-- end #app -->
+
+<script>
+/* ================================================================
+   API — Google Apps Script backend URL
+================================================================ */
+const API_URL = 'https://script.google.com/macros/s/AKfycbwrJGdcEtmndiQtLjGXWumSH0elfXLbZnZvjkWgu-mtgh6hQ-pOjDvq9Ei0Z8YMqZZV/exec';
+
+function api(data) {
+  // POST with text/plain avoids CORS preflight while still sending JSON
+  return fetch(API_URL, {
+    method:   'POST',
+    headers:  { 'Content-Type': 'text/plain;charset=utf-8' },
+    body:     JSON.stringify(data),
+    redirect: 'follow'
+  })
+  .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .catch(err => { L.error('api', err); throw err; });
+}
+
+/* ================================================================
+   TRANSLATIONS
+================================================================ */
+const T = {
+  ge: {
+    'headline1':'გარეცხე და', 'headline2':'მიიღე საჩუქარი.',
+    'welcome.sub':'ESG ავტოსამრეცხაოს ლოიალობის პროგრამა - ყოველი რეცხვა გაახლოვებს უფასოსთან.',
+    'btn.signin':'✦  შესვლა', 'btn.create':'ანგარიშის შექმნა',
+    'auth.back':'უკან', 'tab.login':'შესვლა', 'tab.register':'რეგისტრაცია',
+    'login.title':'მოგესალებით', 'login.sub':'შეიყვანეთ ტელეფონი სისტემაში შესასვლელად.',
+    'register.title':'შემოგვიერთდი', 'register.sub':'შექმენი ლოიალობის ანგარიში.',
+    'label.name':'სრული სახელი', 'label.phone':'ტელეფონის ნომერი',
+    'ph.name':'გიორგი ბერიძე', 'ph.phone':'555 000 000',
+    'btn.login':'შესვლა', 'btn.register':'ანგარიშის შექმნა', 'btn.logout':'გასვლა',
+    'greeting.lbl':'მოგესალმებით',
+    'cycle.lbl':'რეცხვის პროგრესი',
+    'stat.lbl.lifetime':'სულ', 'stat.lbl.cycle':'პროგერსი', 'stat.lbl.left':'უფასომდე',
+    'reward.txt':'🎁  უფასო რეცხვა ხელმისაწვდომია!',
+    'streak.lbl':'✦ თვის რეცხვები — VIP სალონის წმენდა',
+    'vip.title':'VIP საჩუქარი მიღებულია', 'vip.sub':'სალონის წმენდა — მზადაა განსახორციელებლად',
+    'qr.lbl':'წევრის ბარათი', 'history.lbl':'ბოლო აქტივობა',
+    'status.active':'აქტიური წევრი', 'status.reward':'🎁 საჩუქარი ხელმისაწვდომია',
+    'wash.standard':'სტანდარტული რეცხვა', 'wash.free':'უფასო რეცხვა (საჩუქარი)',
+    'wash.interior':'VIP სალონის წმენდა (საჩუქარი)',
+    'history.empty':'ისტორია გამოჩნდება\nპირველი რეცხვის შემდეგ!',
+    'streak.progress':'{n} / 4 რეცხვა ამ თვეში VIP-ის განსაბლოკავად',
+    'streak.claimed':'✓ ამ თვის საჩუქარი გამოიყენე!',
+    'streak.vip':'VIP მზადაა — {n} რეცხვა ამ თვეში!',
+    'err.phone':'სწორი ტელეფონის ნომერი შეიყვანეთ.',
+    'err.name':'სახელი შეიყვანეთ.',
+    'err.notfound':'ანგარიში ვერ მოიძებნა. გთხოვთ, დარეგისტრირდეთ.',
+    'err.exists':'ეს ტელეფონი უკვე რეგისტრირებულია.',
+    'err.conn':'კავშირის შეცდომა. ხელახლა სცადეთ.',
+    'err.generic':'შეცდომა მოხდა. ხელახლა სცადეთ.',
+    'congrats.title':'გილოცავ!', 'congrats.sub':'აირჩიე ჯილდო',
+    'reward.nano.title':'უფასო ნანო-ვაქსი', 'reward.nano.sub':'პრემიუმ ზედაპირის დაცვა',
+    'reward.detail.title':'50% ფასდაკლება', 'reward.detail.sub':'სრული ინტერიერი და ექსტერიერი',
+    'reward.wash.title':'+1 უფასო რეცხვა', 'reward.wash.sub':'ბალანსს ემატება',
+    'toast.welcome':'ESG-ში მოგესალმებით! 🚗',
+    'toast.signout':'გავედი სისტემიდან.',
+    'toast.wash.recorded':'რეცხვა დაფიქსირდა!',
+    'toast.free.earned':'🎉 უფასო რეცხვა მოიგე — 9-ციკლი დასრულდა!',
+    'toast.vip.unlocked':'👑 VIP საჩუქარი — სალონის უფასო წმენდა!',
+  },
+  en: {
+    'headline1':'Drive Clean.', 'headline2':'Earn More.',
+    'welcome.sub':'Your premium car wash loyalty program — every wash brings you closer to a free one.',
+    'btn.signin':'✦  Sign In', 'btn.create':'Create Account',
+    'auth.back':'Back', 'tab.login':'Sign In', 'tab.register':'Register',
+    'login.title':'Welcome back', 'login.sub':'Enter your phone number to access your dashboard.',
+    'register.title':'Join the club', 'register.sub':'Create your loyalty account and start earning rewards today.',
+    'label.name':'Full Name', 'label.phone':'Phone Number',
+    'ph.name':'John Smith', 'ph.phone':'555 000 000',
+    'btn.login':'Sign In', 'btn.register':'Create Account', 'btn.logout':'Logout',
+    'greeting.lbl':'Welcome back',
+    'cycle.lbl':'Wash Progress — Free Wash Cycle',
+    'stat.lbl.lifetime':'Lifetime', 'stat.lbl.cycle':'This Cycle', 'stat.lbl.left':'Until Free',
+    'reward.txt':'🎁  Free Wash Reward Available!',
+    'streak.lbl':'✦ Monthly Streak — VIP Interior Cleaning',
+    'vip.title':'VIP REWARD UNLOCKED', 'vip.sub':'Interior Cleaning — Ready to Redeem',
+    'qr.lbl':'Member Card', 'history.lbl':'Recent Activity',
+    'status.active':'Active Member', 'status.reward':'🎁 Reward Available',
+    'wash.standard':'Standard Wash', 'wash.free':'Free Wash (Reward)',
+    'wash.interior':'Interior Cleaning (Monthly Reward)',
+    'history.empty':'Your history will appear here\nafter your first wash!',
+    'streak.progress':'{n} of 4 washes this month to unlock VIP Interior Cleaning',
+    'streak.claimed':'✓ You claimed this month\'s reward!',
+    'streak.vip':'VIP reward ready — {n} washes this month!',
+    'err.phone':'Please enter a valid phone number.',
+    'err.name':'Please enter your full name.',
+    'err.notfound':'No account found. Please register first.',
+    'err.exists':'This phone number is already registered.',
+    'err.conn':'Connection error. Please try again.',
+    'err.generic':'An error occurred. Please try again.',
+    'congrats.title':'CONGRATULATIONS!', 'congrats.sub':'Choose your reward below',
+    'reward.nano.title':'Free Nano-Wax', 'reward.nano.sub':'Premium surface protection',
+    'reward.detail.title':'50% Off Detail', 'reward.detail.sub':'Full interior & exterior detail',
+    'reward.wash.title':'+1 Free Wash', 'reward.wash.sub':'Added to your balance',
+    'toast.welcome':'Welcome to ESG Car Wash! 🚗',
+    'toast.signout':'Signed out.',
+    'toast.wash.recorded':'Wash recorded!',
+    'toast.free.earned':'🎉 FREE WASH EARNED — 9-Wash Cycle Complete!',
+    'toast.vip.unlocked':'👑 VIP UNLOCKED — Free Interior Cleaning!',
+  }
+};
+
+let currentLang = localStorage.getItem('esg_lang') || 'ge';
+
+// Translate a key, optionally interpolating {n}, {left} etc.
+function tr(key, vars) {
+  const lang = T[currentLang] || T.ge;
+  let s = lang[key] || T.en[key] || key;
+  if (vars) Object.keys(vars).forEach(k => { s = s.replace('{'+k+'}', vars[k]); });
+  return s;
+}
+
+function setLanguage(lang) {
+  currentLang = lang;
+  localStorage.setItem('esg_lang', lang);
+  // Highlight active buttons
+  document.querySelectorAll('[data-lang]').forEach(b =>
+    b.classList.toggle('lang-active', b.dataset.lang === lang)
+  );
+  applyTranslations();
+}
+
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = tr(el.getAttribute('data-i18n'));
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    el.placeholder = tr(el.getAttribute('data-i18n-ph'));
+  });
+  // Re-render dynamic dashboard content if user is logged in
+  if (App && App.user && App.stats) renderDash(App.user, App.stats);
+}
+
+/* ================================================================
+   LOGGER
+================================================================ */
+class Logger {
+  constructor(tag='ESG'){ this.tag=tag; this._l=[]; }
+  _ts(){ return new Date().toISOString().slice(11,23); }
+  _p(lv,...a){ this._l.push({lv,a,t:this._ts()}); return `[${this.tag}][${this._ts()}][${lv}]`; }
+  log(...a)  { console.log(this._p('INFO',...a),...a); }
+  warn(...a) { console.warn(this._p('WARN',...a),...a); }
+  error(...a){ console.error(this._p('ERR',...a),...a); }
+  dump()     { return this._l; }
+}
+const L = new Logger('ESG');
+
+/* ================================================================
+   APP STATE
+================================================================ */
+const App = {
+  user:  null,
+  stats: null,
+  view:  'view-welcome',
+  set(u, s){ this.user=u; this.stats=s||{lifetimeTotal:0,monthlyStreak:0,history:[]}; L.log('state set',u?.userID); },
+  clear(){ this.user=null; this.stats=null; L.log('state cleared'); }
+};
+
+/* ================================================================
+   VIEW TRANSITIONS
+================================================================ */
+function showView(id) {
+  const cur  = document.querySelector('.view.active');
+  const next = document.getElementById(id);
+  if (!next || cur===next) return;
+  if (cur) cur.classList.remove('active');
+  App.view = id;
+  requestAnimationFrame(()=>{ next.classList.add('active'); window.scrollTo({top:0}); });
+}
+function goAuth(mode){ showView('view-auth'); setTimeout(()=>authMode(mode),80); }
+
+/* ================================================================
+   AUTH TABS
+================================================================ */
+function authMode(mode){
+  ['login','register'].forEach(m=>{
+    document.getElementById('tab-'+m).classList.toggle('on', m===mode);
+    document.getElementById('sec-'+m).classList.toggle('on', m===mode);
+  });
+  setTimeout(()=>{ const f=document.querySelector('#sec-'+mode+' input'); if(f) f.focus(); },150);
+}
+
+/* ================================================================
+   PHONE FORMATTER  (Georgian 9-digit primary, intl overflow)
+================================================================ */
+function fmtPhone(inp){
+  let d=inp.value.replace(/\D/g,'');
+  let s='';
+  if(d.length>0) s=d.slice(0,3);
+  if(d.length>=4) s+=' '+d.slice(3,6);
+  if(d.length>=7) s+=' '+d.slice(6,9);
+  if(d.length>9)  s+=' '+d.slice(9);
+  inp.value=s;
+}
+document.getElementById('l-phone').addEventListener('input',function(){fmtPhone(this);});
+document.getElementById('r-phone').addEventListener('input',function(){fmtPhone(this);});
+document.getElementById('l-phone').addEventListener('keypress',e=>{ if(e.key==='Enter') doLogin(); });
+document.getElementById('r-name' ).addEventListener('keypress',e=>{ if(e.key==='Enter') document.getElementById('r-phone').focus(); });
+document.getElementById('r-phone').addEventListener('keypress',e=>{ if(e.key==='Enter') doRegister(); });
+
+/* ================================================================
+   HELPERS
+================================================================ */
+function showErr(id,msg){
+  const el=document.getElementById(id); if(!el) return;
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),4500);
+}
+function clearErrs(){ document.querySelectorAll('.field-err').forEach(e=>e.classList.remove('show')); }
+
+function setBtnLoading(id,on){
+  const b=document.getElementById(id); if(!b) return;
+  if(on){ b.disabled=true; b._orig=b.innerHTML; b.innerHTML='<span class="spinner"></span> Loading…'; }
+  else  { b.disabled=false; b.innerHTML=b._orig||'Submit'; }
+}
+
+function toast(msg,type='inf',dur=3500){
+  const c=document.getElementById('toasts');
+  const t=document.createElement('div');
+  t.className=`toast toast-${type}`; t.textContent=msg;
+  c.appendChild(t);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('in')));
+  setTimeout(()=>{ t.classList.remove('in'); setTimeout(()=>t.remove(),320); },dur);
+}
+
+/* ================================================================
+   AUTH HANDLERS
+================================================================ */
+function doLogin(){
+  clearErrs();
+  const inp=document.getElementById('l-phone');
+  const raw=inp.value.replace(/\D/g,'');
+  if(raw.length<7){ showErr('l-err', tr('err.phone')); return; }
+  setBtnLoading('btn-login',true);
+  L.log('login',raw);
+  api({action:'fetchUser', phone:inp.value})
+    .then(r=>{
+      setBtnLoading('btn-login',false);
+      L.log('login result',r);
+      if(!r.success){ showErr('l-err', tr('err.'+r.code?.toLowerCase()) || tr('err.generic')); return; }
+      if(!r.found)  { showErr('l-err', tr('err.notfound')); return; }
+      App.set(r.user, r.stats);
+      loadDash(r.user, r.stats);
+    })
+    .catch(e=>{ setBtnLoading('btn-login',false); L.error('login err',e); showErr('l-err', tr('err.conn')); });
+}
+
+function doRegister(){
+  clearErrs();
+  const name=document.getElementById('r-name').value.trim();
+  const pInp=document.getElementById('r-phone');
+  const raw=pInp.value.replace(/\D/g,'');
+  if(name.length<2){ showErr('r-err', tr('err.name')); return; }
+  if(raw.length<7) { showErr('r-err', tr('err.phone')); return; }
+  setBtnLoading('btn-reg',true);
+  L.log('register',name,raw);
+  api({action:'registerUser', fullName:name, phone:pInp.value})
+    .then(r=>{
+      setBtnLoading('btn-reg',false);
+      L.log('register result',r);
+      if(!r.success){ showErr('r-err', tr('err.'+r.code?.toLowerCase()) || tr('err.generic')); return; }
+      toast(tr('toast.welcome'),'ok',4000);
+      App.set(r.user, r.stats);
+      loadDash(r.user, r.stats);
+    })
+    .catch(e=>{ setBtnLoading('btn-reg',false); L.error('register err',e); showErr('r-err', tr('err.conn')); });
+}
+
+function doLogout(){
+  App.clear();
+  ['l-phone','r-name','r-phone'].forEach(id=>{ document.getElementById(id).value=''; });
+  document.getElementById('admin-panel').classList.remove('show');
+  adminPressCount=0;
+  showView('view-welcome');
+  toast(tr('toast.signout'),'inf',2000);
+}
+
+/* ================================================================
+   DASHBOARD — LOAD & RENDER
+================================================================ */
+function loadDash(user, stats){
+  const v=document.getElementById('view-dashboard');
+  v.classList.add('loading');
+  showView('view-dashboard');
+  // Skeleton stays visible for at least 640ms for smoothness
+  setTimeout(()=>{ renderDash(user, stats); v.classList.remove('loading'); }, 640);
+}
+
+function renderDash(u, s){
+  L.log('render dash', u.userID, s);
+  const stats = s || { lifetimeTotal:0, monthlyStreak:0, history:[] };
+
+  // Header
+  document.getElementById('h-uid').textContent = u.userID;
+
+  // Greeting
+  document.getElementById('g-name').textContent = u.fullName.split(' ')[0];
+
+  // ── Streak Cycle (3 washes) ───────────────────────────────
+  const streakMax = u.streakMax || 3;
+  const cycle     = parseInt(u.currentCycle) || 0;
+  const isReward  = u.memberStatus === 'Reward Available';
+  const total     = stats.lifetimeTotal || parseInt(u.totalWashes) || 0;
+  const left      = isReward ? 0 : Math.max(0, streakMax - cycle);
+
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-cycle').textContent = cycle;
+  document.getElementById('s-left').textContent  = left;
+
+  // Show reward selection OR the normal tracker
+  const rewardSect  = document.getElementById('reward-select');
+  const trackerCard = document.getElementById('tracker-card');
+  if (isReward) {
+    rewardSect.style.display  = 'block';
+    trackerCard.style.display = 'none';
+    document.getElementById('reward-banner').classList.remove('show');
+    // Re-enable all reward buttons in case they were loading
+    ['rc-nano','rc-detail','rc-wash'].forEach(id=>{
+      const b=document.getElementById(id); if(b){ b.disabled=false; b.innerHTML=b._origHtml||b.innerHTML; }
+    });
+  } else {
+    rewardSect.style.display  = 'none';
+    trackerCard.style.display = '';
+    buildCycleSteps(cycle, false, streakMax);
+    document.getElementById('reward-banner').classList.remove('show');
+  }
+
+  // Status pill
+  const pill=document.getElementById('status-pill');
+  const txt =document.getElementById('status-txt');
+  pill.className='status-pill '+(isReward?'status-reward':'status-active');
+  txt.textContent = isReward ? tr('status.reward') : tr('status.active');
+
+  // ── Monthly Streak ────────────────────────────────────────
+  buildStreakRow(stats.monthlyStreak || 0, stats.monthlyRewardRedeemed || false);
+
+  // ── QR Card ───────────────────────────────────────────────
+  document.getElementById('qr-img').src =
+    'https://api.qrserver.com/v1/create-qr-code/?size=250x250&bgcolor=ffffff&color=020617&margin=4&data='
+    + encodeURIComponent(u.userID);
+  document.getElementById('qr-uid').textContent = u.userID;
+
+  let since = u.memberSince ? 'Member since ' + u.memberSince : '';
+  document.getElementById('qr-since').textContent = since;
+
+  // ── Wash History ─────────────────────────────────────────
+  renderHistory(stats.history || []);
+}
+
+/* ================================================================
+   9-WASH STEP INDICATOR (Blue)
+================================================================ */
+function buildCycleSteps(cycle, isReward, streakMax){
+  const MAX = streakMax || 3;
+  const row = document.getElementById('step-row');
+  row.innerHTML = '';
+
+  for(let i=1; i<=MAX; i++){
+    const done = (i<=cycle), now = (i===cycle && !isReward);
+    const node = document.createElement('div'); node.className='step-node';
+    const dot  = document.createElement('div');
+    dot.className = 'step-dot'+(done?' done':'')+(now?' now':'');
+    dot.textContent = i;
+    node.appendChild(dot); row.appendChild(node);
+    const line = document.createElement('div');
+    line.className = 'step-line'+(i<cycle?' done':''); line.style.flex='1';
+    row.appendChild(line);
+  }
+  // Gift node at the end
+  const lastLine = document.createElement('div');
+  lastLine.className = 'step-line'+(isReward?' done':''); lastLine.style.flex='1';
+  row.appendChild(lastLine);
+  const gn = document.createElement('div'); gn.className='step-node';
+  const g  = document.createElement('div');
+  g.className = 'gift-dot'+(isReward?' lit':''); g.textContent='🎁';
+  gn.appendChild(g); row.appendChild(gn);
+}
+
+/* ================================================================
+   MONTHLY STREAK ROW (Emerald — 4 milestones)
+================================================================ */
+function buildStreakRow(monthCount, rewardRedeemed){
+  const GOAL = 4;
+  const row  = document.getElementById('streak-row');
+  row.innerHTML = '';
+
+  // When reward is claimed, dots visually reset to 0
+  const displayCount = rewardRedeemed ? 0 : Math.min(monthCount, GOAL);
+
+  for(let i=1; i<=GOAL; i++){
+    const done   = i <= displayCount;
+    const isLast = i === GOAL;
+
+    const node = document.createElement('div'); node.className='streak-node';
+    const dot  = document.createElement('div');
+    dot.className = 'streak-dot' + (done ? ' done' + (displayCount===i?' now':'') : '');
+    dot.textContent = done ? (isLast ? '👑' : '✦') : (isLast ? '👑' : i);
+    node.appendChild(dot);
+    row.appendChild(node);
+
+    if(i < GOAL){
+      const line=document.createElement('div');
+      line.className='streak-line'+(i<displayCount?' done':''); line.style.flex='1';
+      row.appendChild(line);
+    }
+  }
+
+  const infoRow  = document.getElementById('streak-info-row');
+  const infoTxt  = document.getElementById('streak-info-text');
+  const countEl  = document.getElementById('streak-count');
+  const vipBadge = document.getElementById('vip-badge');
+
+  if(rewardRedeemed){
+    infoTxt.textContent = tr('streak.claimed');
+    infoTxt.style.color = '#34d399';
+    countEl.textContent = '0/4';
+    countEl.style.color = 'var(--text-3)';
+    vipBadge.classList.remove('show');
+  } else {
+    const isVIP = monthCount >= GOAL;
+    infoTxt.style.color = '';
+    infoTxt.textContent = isVIP
+      ? tr('streak.vip',  {n: monthCount})
+      : tr('streak.progress', {n: displayCount});
+    countEl.textContent = displayCount + '/' + GOAL;
+    countEl.style.color = isVIP ? '#fbbf24' : '#34d399';
+    vipBadge.classList.toggle('show', isVIP);
+  }
+
+  infoRow.style.display = 'flex';
+}
+
+/* ================================================================
+   WASH HISTORY LIST
+================================================================ */
+function renderHistory(history){
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+
+  // Show last 5 entries
+  const items = history.slice(0, 5);
+
+  if(!items.length){
+    list.innerHTML = `<div class="history-empty"><div class="history-empty-icon">🚗</div>${tr('history.empty').replace('\n','<br>')}</div>`;
+    return;
+  }
+
+  items.forEach(entry=>{
+    const isRew = entry.isReward || entry.rewardRedeemed === 'Yes';
+    const rawType = entry.washType || 'Standard Wash';
+    const type = rawType.includes('Interior') ? tr('wash.interior')
+               : rawType.includes('Free')     ? tr('wash.free')
+               :                                tr('wash.standard');
+    const time  = entry.formatted || entry.timestamp || '';
+
+    const item=document.createElement('div'); item.className='history-item';
+    item.innerHTML=`
+      <div class="hist-icon ${isRew?'hist-icon-reward':'hist-icon-standard'}">
+        ${isRew ? '🎁' : '🫧'}
+      </div>
+      <div class="hist-text">
+        <div class="hist-type">${type}</div>
+        <div class="hist-time">${time}</div>
+      </div>
+      ${isRew?'<span class="hist-badge hist-badge-reward">Reward</span>':''}
+    `;
+    list.appendChild(item);
+  });
+}
+
+/* ================================================================
+   ADMIN MODE — long-press header logo (1.5s)
+================================================================ */
+let adminPressTimer=null, adminPressCount=0;
+function startPress(){ adminPressTimer=setTimeout(activateAdmin,1500); }
+function endPress()  { clearTimeout(adminPressTimer); }
+function activateAdmin(){
+  adminPressCount++;
+  const p=document.getElementById('admin-panel');
+  if(adminPressCount%2===1){ p.classList.add('show'); toast('🔧 Admin mode on','inf',2000); }
+  else                      { p.classList.remove('show'); toast('Admin mode off','inf',1500); }
+}
+document.getElementById('header-logo').addEventListener('mousedown', startPress);
+document.getElementById('header-logo').addEventListener('touchstart',startPress,{passive:true});
+document.getElementById('header-logo').addEventListener('mouseup',   endPress);
+document.getElementById('header-logo').addEventListener('mouseleave',endPress);
+document.getElementById('header-logo').addEventListener('touchend',  endPress);
+
+function adminAddWash(){
+  if(!App.user){ toast('No user logged in','err'); return; }
+  L.log('[ADMIN] wash for', App.user.userID);
+  const prevStreak = App.stats?.monthlyStreak ?? 0;
+  api({action:'addWash', userID:App.user.userID})
+    .then(r=>{
+      L.log('[ADMIN] result',r);
+      if(!r.success){ toast(r.message||'Error','err'); return; }
+      App.set(r.user, r.stats);
+      renderDash(r.user, r.stats);
+      const newStreak = r.stats?.monthlyStreak ?? 0;
+      if(r.rewardEarned)                       toast(tr('toast.free.earned'),'wow',5500);
+      else if(newStreak >= 4 && prevStreak < 4) toast(tr('toast.vip.unlocked'),'str',5500);
+      else                                      toast(tr('toast.wash.recorded'),'ok');
+    })
+    .catch(e=>{ L.error('[ADMIN] err',e); toast('Connection error','err'); });
+}
+
+/* ================================================================
+   CLAIM REWARD
+================================================================ */
+function doClaimReward(rewardChoice) {
+  if (!App.user) return;
+  const btnMap = { NANO_WAX:'rc-nano', HALF_OFF_DETAIL:'rc-detail', FREE_WASH:'rc-wash' };
+  const btn    = document.getElementById(btnMap[rewardChoice]);
+
+  if (btn) {
+    btn._origHtml = btn.innerHTML;
+    btn.disabled  = true;
+    btn.innerHTML = '<div class="rc-loading"><span class="spinner"></span> Processing…</div>';
+  }
+  Object.values(btnMap).forEach(id=>{ const b=document.getElementById(id); if(b) b.disabled=true; });
+
+  L.log('claimReward', rewardChoice, App.user.userID);
+  api({ action:'claimReward', userId:App.user.userID, rewardChoice })
+    .then(r=>{
+      if (!r.success) {
+        toast(r.message||tr('err.generic'),'err',4000);
+        Object.values(btnMap).forEach(id=>{ const b=document.getElementById(id); if(b){ b.disabled=false; if(b._origHtml) b.innerHTML=b._origHtml; }});
+        return;
+      }
+      const labels = { NANO_WAX:tr('reward.nano.title'), HALF_OFF_DETAIL:tr('reward.detail.title'), FREE_WASH:tr('reward.wash.title') };
+      toast('🎉 '+(labels[rewardChoice]||rewardChoice)+' — claimed!','wow',5000);
+      App.set(r.user, r.stats);
+      loadDash(r.user, r.stats);
+    })
+    .catch(e=>{ L.error('claim err',e); toast(tr('err.conn'),'err',4000);
+      Object.values(btnMap).forEach(id=>{ const b=document.getElementById(id); if(b){ b.disabled=false; if(b._origHtml) b.innerHTML=b._origHtml; }}); });
+}
+
+/* ================================================================
+   NEWS BAR — loads announcement from Admin sheet on page start
+================================================================ */
+function loadNewsBar() {
+  api({ action:'getAppConfig' })
+    .then(r=>{
+      if (!r.announcementText) return;
+      const bar=document.getElementById('news-bar');
+      const ticker=document.getElementById('news-ticker');
+      ticker.textContent = r.announcementText;
+      if (r.announcementText.length < 60) ticker.classList.add('short');
+      bar.style.display='flex';
+    })
+    .catch(()=>{});
+}
+
+/* ================================================================
+   INSTALL BANNER
+   Shows 2 s after load if:  not in standalone mode  AND  not dismissed
+================================================================ */
+(function initBanner(){
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true ||
+    document.referrer.startsWith('android-app://');
+
+  if (isStandalone) return;
+
+  const DISMISSED_KEY = 'esg_banner_dismissed';
+
+  // Detect Safari on iOS (not Chrome/Firefox on iOS)
+  const ua       = navigator.userAgent;
+  const isIOS    = /iphone|ipad|ipod/i.test(ua);
+  const isSafari = isIOS && /safari/i.test(ua) && !/crios|fxios|opios|mercury/i.test(ua);
+
+  if (isSafari && !localStorage.getItem(DISMISSED_KEY)) {
+    // Update banner copy to be iOS-Safari specific with stronger CTA
+    const title = document.querySelector('.banner-title');
+    const body  = document.querySelector('.banner-body');
+    if (title) title.textContent = '📱 Install for the best experience on iPhone';
+    if (body)  body.innerHTML =
+      'Safari restricts this app. Tap the '
+      + '<span class="banner-share-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span>'
+      + ' <strong>Share</strong> button → <strong>"Add to Home Screen"</strong> for full access. Or open in <strong>Chrome</strong>.';
+    setTimeout(() => { const b=document.getElementById('install-banner'); if(b) b.classList.add('visible'); }, 800);
+    return;
+  }
+
+  if (localStorage.getItem(DISMISSED_KEY)) return;
+  const banner = document.getElementById('install-banner');
+  setTimeout(() => banner && banner.classList.add('visible'), 2000);
+})();
+
+function dismissBanner() {
+  const banner = document.getElementById('install-banner');
+  if (!banner) return;
+  banner.classList.remove('visible');
+  localStorage.setItem('esg_banner_dismissed', '1');
+}
+
+/* ================================================================
+   MANAGER PORTAL LINK
+   Now on GitHub Pages, manager.html lives beside index.html.
+================================================================ */
+function openManagerPortal() {
+  const base = window.location.href.replace(/\/[^/]*$/, '/');
+  window.open(base + 'manager.html', '_blank');
+}
+
+/* ================================================================
+   INIT
+================================================================ */
+document.addEventListener('DOMContentLoaded', ()=>{
+  L.log('ESG App initialised');
+  setLanguage(currentLang);
+  loadNewsBar();                    // fetch announcement from Admin sheet
+  api({action:'setup'})
+    .then(r=>L.log('setup',r))
+    .catch(e=>L.warn('setup err — check API_URL is set correctly',e));
+});
+</script>
+</body>
+</html>

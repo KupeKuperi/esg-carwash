@@ -1,0 +1,25 @@
+{
+  "name": "ESG Car Wash — Loyalty",
+  "short_name": "ESG Rewards",
+  "description": "Your premium car wash loyalty program. Every wash brings you closer to a free one.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "https://drive.google.com/thumbnail?sz=w192&id=1ldsE4D9iyiwK5zE2hdweZqGHvIehp336",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://drive.google.com/thumbnail?sz=w512&id=1ldsE4D9iyiwK5zE2hdweZqGHvIehp336",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

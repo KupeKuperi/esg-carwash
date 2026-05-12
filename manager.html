@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ESG — Manager Portal</title>
+<meta name="apple-mobile-web-app-capable"          content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title"            content="ESG Manager">
+<meta name="mobile-web-app-capable"                content="yes">
+<meta name="theme-color"                           content="#020617">
+<link rel="apple-touch-icon" href="https://drive.google.com/thumbnail?sz=w500&id=1ldsE4D9iyiwK5zE2hdweZqGHvIehp336">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- html5-qrcode: camera QR scanning -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+/* ================================================================
+   TOKENS — Manager theme: orange accent on deep-navy base
+================================================================ */
+*,*::before,*::after{
+  box-sizing:border-box; margin:0; padding:0;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;
+}
+:root {
+  --bg:      #020617;
+  --bg-2:    #0f172a;
+  --bg-3:    #1e293b;
+  --mg:      #f59e0b;   /* manager orange */
+  --mg-dim:  rgba(245,158,11,0.13);
+  --mg-glow: rgba(245,158,11,0.30);
+  --ok:      #10b981;
+  --ok-dim:  rgba(16,185,129,0.13);
+  --ok-glow: rgba(16,185,129,0.28);
+  --err:     #ef4444;
+  --card:    rgba(30,41,59,0.75);
+  --border:  rgba(255,255,255,0.07);
+  --text:    #f1f5f9;
+  --text-2:  #94a3b8;
+  --text-3:  #475569;
+  --font:    'Inter', system-ui, sans-serif;
+}
+
+html { scroll-behavior:smooth; }
+body {
+  min-height:100vh; background:var(--bg); color:var(--text);
+  font-family:var(--font); -webkit-font-smoothing:antialiased;
+  overflow-x:hidden; overscroll-behavior:none;
+}
+.body-wrap,.scanner-body,.profile-body { -webkit-overflow-scrolling:touch; }
+.btn        { min-height:50px; }
+.key        { min-height:54px; }
+.mgr-logout { min-height:44px; }
+.btn-action { min-height:70px; }
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(ellipse 55% 45% at 10% 35%, rgba(245,158,11,0.05) 0%, transparent 65%),
+    radial-gradient(ellipse 45% 55% at 90% 15%, rgba(16,185,129,0.04) 0%, transparent 65%);
+}
+
+/* ================================================================
+   APP SHELL & VIEWS
+================================================================ */
+#app { position:relative; min-height:100vh; z-index:1; }
+.view {
+  visibility:hidden; opacity:0;
+  transform:scale(0.975) translateY(8px);
+  transition:opacity .35s ease, transform .35s ease, visibility .35s;
+  position:absolute; top:0; left:0; right:0; min-height:100vh;
+  pointer-events:none;
+}
+.view.active {
+  visibility:visible; opacity:1;
+  transform:scale(1) translateY(0);
+  position:relative; pointer-events:all;
+}
+
+/* ================================================================
+   GLASS CARD
+================================================================ */
+.card {
+  background:var(--card);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border); border-radius:18px;
+}
+
+/* ================================================================
+   BUTTONS
+================================================================ */
+.btn {
+  display:inline-flex; align-items:center; justify-content:center;
+  gap:9px; padding:15px 26px; border-radius:14px;
+  font-size:15px; font-weight:700; cursor:pointer; border:none;
+  font-family:var(--font); transition:transform .2s, box-shadow .2s, opacity .2s;
+}
+.btn:disabled { opacity:.42; cursor:not-allowed; }
+.btn-mg {
+  background:linear-gradient(135deg,#d97706,#f59e0b);
+  color:#020617; box-shadow:0 4px 20px var(--mg-glow);
+}
+.btn-mg:not(:disabled):hover  { transform:translateY(-2px); box-shadow:0 8px 30px rgba(245,158,11,.45); }
+.btn-mg:not(:disabled):active { transform:translateY(0); }
+.btn-ok {
+  background:linear-gradient(135deg,#059669,#10b981);
+  color:#020617; box-shadow:0 4px 20px var(--ok-glow);
+}
+.btn-ok:not(:disabled):hover  { transform:translateY(-2px); box-shadow:0 8px 28px rgba(16,185,129,.45); }
+.btn-ok:not(:disabled):active { transform:translateY(0); }
+.btn-ghost {
+  background:var(--card); color:var(--text);
+  border:1px solid var(--border); backdrop-filter:blur(8px);
+}
+.btn-ghost:not(:disabled):hover { border-color:var(--mg); color:var(--mg); }
+.btn-full { width:100%; }
+
+/* ================================================================
+   SPINNER
+================================================================ */
+@keyframes spin { to{ transform:rotate(360deg); } }
+.spinner {
+  display:inline-block; width:18px; height:18px;
+  border:2px solid rgba(255,255,255,.2); border-top-color:currentColor;
+  border-radius:50%; animation:spin .75s linear infinite;
+}
+.btn-mg .spinner,.btn-ok .spinner { border-top-color:#020617; border-color:rgba(2,6,23,.2); }
+
+/* ================================================================
+   HEADER BAR
+================================================================ */
+.mgr-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 22px;
+  background:rgba(2,6,23,.94);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(245,158,11,.15);
+  position:sticky; top:0; z-index:100;
+}
+.mgr-header-logo {
+  width:80px; height:auto;
+  filter:drop-shadow(0 0 8px var(--mg-glow));
+}
+.mgr-badge {
+  font-size:11px; font-weight:800; letter-spacing:.09em;
+  color:var(--mg); background:var(--mg-dim);
+  padding:5px 12px; border-radius:100px;
+  border:1px solid rgba(245,158,11,.25);
+  text-transform:uppercase;
+}
+.mgr-logout {
+  padding:7px 14px; border-radius:9px;
+  background:transparent; border:1px solid var(--border);
+  color:var(--text-2); font-size:13px; font-weight:600;
+  cursor:pointer; transition:all .2s; font-family:var(--font);
+}
+.mgr-logout:hover { border-color:var(--mg); color:var(--mg); }
+
+/* ================================================================
+   BODY WRAP
+================================================================ */
+.body-wrap { padding:22px; max-width:480px; margin:0 auto; }
+
+/* ================================================================
+   VIEW: PIN ENTRY
+================================================================ */
+#view-pin {
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; min-height:100vh; padding:40px 24px; text-align:center;
+}
+.pin-logo {
+  width:120px; height:auto;
+  filter:drop-shadow(0 0 14px var(--mg-glow));
+  margin-bottom:32px;
+}
+.pin-title   { font-size:24px; font-weight:800; margin-bottom:6px; }
+.pin-sub     { font-size:14px; color:var(--text-2); margin-bottom:36px; }
+
+/* PIN dot display */
+.pin-dots {
+  display:flex; gap:14px; justify-content:center; margin-bottom:32px;
+}
+.pin-dot {
+  width:16px; height:16px; border-radius:50%;
+  border:2px solid var(--text-3);
+  transition:background .2s, border-color .2s, transform .15s;
+}
+.pin-dot.filled { background:var(--mg); border-color:var(--mg); transform:scale(1.15); }
+.pin-dot.error  { background:var(--err); border-color:var(--err); }
+
+/* Numeric keypad */
+.keypad {
+  display:grid; grid-template-columns:repeat(3,1fr);
+  gap:10px; width:100%; max-width:280px;
+}
+.key {
+  padding:18px 0; border-radius:14px; border:none;
+  background:var(--card); backdrop-filter:blur(8px);
+  border:1px solid var(--border);
+  color:var(--text); font-size:20px; font-weight:700;
+  cursor:pointer; transition:all .15s; font-family:var(--font);
+  display:flex; align-items:center; justify-content:center;
+}
+.key:active { background:rgba(245,158,11,.18); border-color:var(--mg); color:var(--mg); transform:scale(.95); }
+.key-del  { font-size:18px; color:var(--text-2); }
+.key-ok   { background:linear-gradient(135deg,#d97706,#f59e0b); color:#020617; border-color:transparent; box-shadow:0 4px 16px var(--mg-glow); }
+.key-ok:active { opacity:.8; }
+
+@keyframes pin-shake {
+  0%,100%{ transform:translateX(0); }
+  20%    { transform:translateX(-8px); }
+  40%    { transform:translateX(8px); }
+  60%    { transform:translateX(-6px); }
+  80%    { transform:translateX(6px); }
+}
+.pin-dots.shake { animation:pin-shake .4s ease; }
+
+.pin-err-text {
+  font-size:13px; color:var(--err); margin-top:16px;
+  min-height:20px; font-weight:600;
+}
+
+/* ================================================================
+   VIEW: DASHBOARD
+================================================================ */
+#view-dashboard { min-height:100vh; }
+
+/* Daily Total Card */
+.daily-card {
+  padding:22px 24px; margin-bottom:16px;
+  display:flex; align-items:center; gap:20px;
+}
+.daily-icon {
+  width:56px; height:56px; border-radius:14px; flex:0 0 56px;
+  background:linear-gradient(135deg,#d97706,#f59e0b);
+  display:flex; align-items:center; justify-content:center;
+  font-size:26px; box-shadow:0 4px 16px var(--mg-glow);
+}
+.daily-info {}
+.daily-label { font-size:11px; font-weight:700; color:var(--text-2); text-transform:uppercase; letter-spacing:.08em; }
+.daily-count { font-size:42px; font-weight:900; color:var(--mg); line-height:1.05; }
+.daily-sub   { font-size:12px; color:var(--text-3); margin-top:2px; }
+
+/* Scan Button */
+.scan-cta { margin-bottom:20px; }
+
+/* History Feed */
+.history-card { padding:22px 20px; margin-bottom:20px; }
+.section-label {
+  font-size:11px; font-weight:700; color:var(--text-2);
+  text-transform:uppercase; letter-spacing:.09em; margin-bottom:18px;
+}
+.history-feed { display:flex; flex-direction:column; gap:0; }
+
+.feed-item {
+  display:flex; align-items:center; gap:12px;
+  padding:11px 0; border-bottom:1px solid var(--border);
+}
+.feed-item:last-child { border-bottom:none; }
+
+.feed-time {
+  font-size:12px; font-weight:700; color:var(--mg);
+  min-width:42px; flex:0 0 42px; font-variant-numeric:tabular-nums;
+}
+.feed-icon {
+  width:32px; height:32px; border-radius:9px; flex:0 0 32px;
+  display:flex; align-items:center; justify-content:center; font-size:15px;
+}
+.feed-icon-std     { background:var(--mg-dim); }
+.feed-icon-reward  { background:rgba(245,158,11,.2); }
+.feed-icon-monthly { background:var(--ok-dim); }
+
+.feed-text   { flex:1; }
+.feed-name   { font-size:14px; font-weight:600; }
+.feed-type   { font-size:11px; color:var(--text-3); margin-top:1px; }
+.feed-uid    { font-size:10px; color:var(--text-3); letter-spacing:.05em; }
+
+.feed-empty {
+  text-align:center; padding:24px 16px;
+  color:var(--text-3); font-size:13px; line-height:1.6;
+}
+
+/* ================================================================
+   VIEW: SCANNER
+================================================================ */
+#view-scanner { min-height:100vh; }
+.scanner-body { padding:20px; max-width:480px; margin:0 auto; }
+
+.scanner-title-row {
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;
+}
+.scanner-title { font-size:20px; font-weight:800; }
+
+/* Camera window */
+.camera-window {
+  position:relative; border-radius:20px; overflow:hidden;
+  background:#000; width:100%; aspect-ratio:1/1;
+  border:1px solid var(--border); margin-bottom:18px;
+}
+#qr-reader {
+  position:absolute; inset:0; width:100% !important; height:100% !important;
+}
+/* Hide html5-qrcode's default UI elements */
+#qr-reader video  { width:100% !important; height:100% !important; object-fit:cover; }
+#qr-reader img    { display:none !important; }
+#qr-reader select { display:none !important; }
+#qr-reader button { display:none !important; }
+#qr-reader span   { display:none !important; }
+#qr-reader *[style*="background"] { background:transparent !important; }
+
+/* Viewfinder overlay */
+.vf-overlay {
+  position:absolute; inset:0;
+  pointer-events:none; z-index:10;
+}
+/* Dark vignette outside the box */
+.vf-overlay::before {
+  content:'';
+  position:absolute; inset:0;
+  background:radial-gradient(
+    ellipse 58% 58% at 50% 50%,
+    transparent 46%,
+    rgba(2,6,23,.72) 57%
+  );
+}
+/* The target box */
+.vf-box {
+  position:absolute;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  width:58%; aspect-ratio:1/1;
+}
+/* Corner brackets */
+.vf-corner {
+  position:absolute; width:22px; height:22px;
+  border-color:var(--mg); border-style:solid;
+}
+.vf-corner.tl { top:0; left:0;  border-width:3px 0 0 3px; border-radius:4px 0 0 0; }
+.vf-corner.tr { top:0; right:0; border-width:3px 3px 0 0; border-radius:0 4px 0 0; }
+.vf-corner.bl { bottom:0; left:0;  border-width:0 0 3px 3px; border-radius:0 0 0 4px; }
+.vf-corner.br { bottom:0; right:0; border-width:0 3px 3px 0; border-radius:0 0 4px 0; }
+
+/* Scanning beam */
+@keyframes beam-scan {
+  0%   { top:4%; opacity:.9; }
+  48%  { opacity:.9; }
+  50%  { top:96%; opacity:.9; }
+  52%  { opacity:.9; }
+  100% { top:4%; opacity:.9; }
+}
+.vf-beam {
+  position:absolute; left:0; right:0; height:2px;
+  background:linear-gradient(90deg,transparent,var(--mg),transparent);
+  box-shadow:0 0 6px var(--mg-glow);
+  animation:beam-scan 2.6s ease-in-out infinite;
+}
+
+.scanner-hint {
+  text-align:center; font-size:13px; color:var(--text-2);
+  padding:0 20px; line-height:1.6;
+}
+.scanner-status {
+  text-align:center; margin-top:10px;
+  font-size:13px; color:var(--text-3); min-height:20px;
+}
+.scanner-status.looking { color:var(--mg); }
+.scanner-status.found   { color:var(--ok); font-weight:700; }
+.scanner-status.err     { color:var(--err); font-weight:700; }
+
+/* ================================================================
+   VIEW: PROFILE (after successful scan)
+================================================================ */
+#view-profile { min-height:100vh; }
+.profile-body { padding:20px; max-width:480px; margin:0 auto; }
+
+.profile-header-row {
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;
+}
+.profile-back-btn {
+  display:inline-flex; align-items:center; gap:7px;
+  background:none; border:none; color:var(--text-2);
+  font-size:14px; font-weight:600; cursor:pointer; font-family:var(--font);
+  transition:color .2s; padding:0;
+}
+.profile-back-btn:hover { color:var(--mg); }
+
+/* Identity strip */
+.identity-strip {
+  padding:20px 22px; margin-bottom:14px;
+  display:flex; align-items:center; gap:16px;
+}
+.avatar-ring {
+  width:58px; height:58px; border-radius:50%; flex:0 0 58px;
+  background:linear-gradient(135deg,#d97706,#f59e0b);
+  display:flex; align-items:center; justify-content:center;
+  font-size:22px; font-weight:900; color:#020617;
+  box-shadow:0 4px 14px var(--mg-glow);
+}
+.identity-info {}
+.identity-name   { font-size:20px; font-weight:800; }
+.identity-uid    { font-size:12px; color:var(--mg); letter-spacing:.07em; font-weight:600; margin-top:2px; }
+.identity-phone  { font-size:12px; color:var(--text-3); margin-top:1px; }
+.identity-status {
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:11px; font-weight:700; letter-spacing:.05em;
+  padding:4px 10px; border-radius:100px; margin-top:6px;
+}
+.is-active  { background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.28); color:#4ade80; }
+.is-reward  { background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.28); color:#fbbf24; }
+.is-pip     { width:5px; height:5px; border-radius:50%; background:currentColor; }
+
+/* Progress mini-cards */
+.progress-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+.prog-card { padding:16px 18px; }
+.prog-label {
+  font-size:10px; font-weight:700; color:var(--text-2);
+  text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px;
+}
+.prog-mini-steps { display:flex; gap:5px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+.prog-mini-dot {
+  width:14px; height:14px; border-radius:50%;
+  background:rgba(71,85,105,.4); border:1.5px solid var(--text-3);
+  transition:all .3s; flex:0 0 14px;
+}
+.prog-mini-dot.done { background:var(--mg); border-color:var(--mg); box-shadow:0 0 5px var(--mg-glow); }
+.prog-mini-dot.green-done { background:var(--ok); border-color:var(--ok); box-shadow:0 0 5px var(--ok-glow); }
+.prog-val { font-size:22px; font-weight:900; }
+.prog-val-blue  { color:var(--mg); }
+.prog-val-green { color:var(--ok); }
+.prog-sub { font-size:11px; color:var(--text-3); margin-top:2px; }
+
+/* VIP tag */
+.vip-tag {
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:11px; font-weight:800; color:#fbbf24; letter-spacing:.05em;
+  background:rgba(245,158,11,.15); border:1px solid rgba(245,158,11,.3);
+  padding:4px 10px; border-radius:100px; margin-top:6px;
+}
+
+/* Action Buttons */
+.action-area { display:flex; flex-direction:column; gap:12px; margin-bottom:16px; }
+.action-btn-inner {
+  display:flex; flex-direction:column; gap:2px; text-align:left;
+}
+.action-btn-title { font-size:16px; font-weight:800; }
+.action-btn-sub   { font-size:12px; opacity:.75; font-weight:500; }
+
+.btn-action {
+  width:100%; padding:18px 22px;
+  display:flex; align-items:center; gap:16px;
+  text-align:left; border-radius:16px;
+  border:none; cursor:pointer; font-family:var(--font);
+  transition:all .2s;
+}
+.btn-action:disabled { opacity:.38; cursor:not-allowed; transform:none !important; }
+.action-icon {
+  width:44px; height:44px; border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:22px; flex:0 0 44px;
+}
+.wash-action {
+  background:linear-gradient(135deg,rgba(245,158,11,.12),rgba(245,158,11,.06));
+  border:1px solid rgba(245,158,11,.3);
+  color:var(--text);
+}
+.wash-action:not(:disabled):hover { border-color:var(--mg); background:linear-gradient(135deg,rgba(245,158,11,.2),rgba(245,158,11,.1)); transform:translateY(-1px); }
+.wash-action .action-icon { background:var(--mg-dim); }
+
+.vip-action {
+  background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(16,185,129,.06));
+  border:1px solid rgba(16,185,129,.3); color:var(--text);
+}
+.vip-action:not(:disabled):hover { border-color:var(--ok); background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(16,185,129,.1)); transform:translateY(-1px); }
+.vip-action .action-icon { background:var(--ok-dim); }
+
+.action-locked-reason {
+  text-align:center; font-size:12px; color:var(--text-3); margin-top:-4px;
+}
+
+/* Confirm overlay */
+#confirm-overlay {
+  position:fixed; inset:0; z-index:500;
+  background:rgba(2,6,23,.85);
+  backdrop-filter:blur(8px);
+  display:none;
+  align-items:flex-end; justify-content:center;
+  padding:20px;
+}
+#confirm-overlay.show { display:flex; }
+.confirm-sheet {
+  width:100%; max-width:480px;
+  background:var(--bg-3);
+  border:1px solid var(--border);
+  border-radius:24px 24px 16px 16px;
+  padding:28px 24px;
+  animation:slide-up .3s ease;
+}
+@keyframes slide-up {
+  from{ transform:translateY(60px); opacity:0; }
+  to  { transform:translateY(0);    opacity:1; }
+}
+.confirm-title { font-size:18px; font-weight:800; margin-bottom:6px; }
+.confirm-sub   { font-size:14px; color:var(--text-2); margin-bottom:24px; line-height:1.5; }
+.confirm-btns  { display:flex; gap:12px; }
+.confirm-btns .btn { flex:1; }
+
+/* ================================================================
+   TOAST
+================================================================ */
+#toasts {
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+  z-index:9999; display:flex; flex-direction:column; gap:8px;
+  align-items:center; pointer-events:none; width:90%; max-width:360px;
+}
+.toast {
+  width:100%; padding:13px 20px; border-radius:13px;
+  font-size:14px; font-weight:600; text-align:center;
+  backdrop-filter:blur(14px);
+  opacity:0; transform:translateY(16px);
+  transition:opacity .3s, transform .3s; pointer-events:all;
+}
+.toast.in  { opacity:1; transform:translateY(0); }
+.toast-ok  { background:rgba(16,185,129,.18); border:1px solid rgba(16,185,129,.35); color:#34d399; }
+.toast-err { background:rgba(239,68,68,.18);   border:1px solid rgba(239,68,68,.35);  color:#f87171; }
+.toast-inf { background:rgba(245,158,11,.15);  border:1px solid rgba(245,158,11,.3);  color:#fbbf24; }
+.toast-wow { background:rgba(245,158,11,.22);  border:1px solid rgba(245,158,11,.4);  color:#fbbf24; font-size:16px; }
+
+/* ================================================================
+   SIGNAGE CARD
+================================================================ */
+.signage-card { padding:22px 20px; margin-bottom:20px; }
+
+.signage-url-row    { margin-bottom:16px; }
+.signage-url-label  {
+  font-size:11px; font-weight:700; color:var(--text-2);
+  text-transform:uppercase; letter-spacing:.07em;
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:7px;
+}
+.signage-url-hint   { font-size:10px; color:var(--text-3); text-transform:none; font-weight:500; letter-spacing:0; }
+.signage-url-input  {
+  width:100%; padding:11px 14px;
+  background:rgba(15,23,42,.85); border:1px solid var(--border);
+  border-radius:11px; color:var(--text); font-size:12px;
+  font-family:var(--font); outline:none;
+  transition:border-color .2s, box-shadow .2s;
+}
+.signage-url-input:focus { border-color:var(--mg); box-shadow:0 0 0 3px rgba(245,158,11,.1); }
+.signage-url-input::placeholder { color:var(--text-3); }
+.signage-url-status {
+  font-size:11px; margin-top:5px; min-height:16px; font-weight:600;
+}
+.signage-url-status.ok  { color:var(--ok); }
+.signage-url-status.bad { color:var(--err); }
+
+.signage-preview {
+  display:flex; align-items:center; gap:16px; margin-bottom:18px;
+}
+.signage-qr-thumb {
+  width:72px; height:72px; border-radius:10px;
+  overflow:hidden; background:#fff; padding:5px; flex:0 0 72px;
+  border:1px solid rgba(245,158,11,.25);
+}
+.signage-qr-thumb img { width:100%; height:100%; object-fit:contain; display:block; }
+
+.signage-info {}
+.signage-info-title { font-size:15px; font-weight:700; margin-bottom:4px; }
+.signage-info-sub   { font-size:12px; color:var(--text-2); line-height:1.5; }
+
+/* ================================================================
+   PERMISSION HELPER OVERLAY
+================================================================ */
+.perm-helper {
+  position:absolute; inset:0; z-index:50;
+  background:rgba(2,6,23,.96);
+  backdrop-filter:blur(10px);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:28px 24px; text-align:center;
+  border-radius:inherit;
+}
+.perm-emoji  { font-size:48px; margin-bottom:16px; line-height:1; }
+.perm-title  { font-size:18px; font-weight:800; margin-bottom:8px; }
+.perm-body   { font-size:14px; color:var(--text-2); line-height:1.6; margin-bottom:20px; }
+.perm-steps  {
+  width:100%; background:rgba(15,23,42,.8);
+  border:1px solid var(--border); border-radius:12px;
+  padding:14px 16px; margin-bottom:20px; text-align:left;
+}
+.perm-step {
+  display:flex; align-items:flex-start; gap:10px;
+  font-size:13px; color:var(--text-2); line-height:1.5;
+  padding:5px 0;
+}
+.perm-step + .perm-step { border-top:1px solid var(--border); }
+.perm-step-num {
+  width:20px; height:20px; border-radius:50%; flex:0 0 20px;
+  background:var(--mg-dim); border:1px solid rgba(245,158,11,.3);
+  color:var(--mg); font-size:11px; font-weight:800;
+  display:flex; align-items:center; justify-content:center; margin-top:1px;
+}
+.perm-actions { display:flex; flex-direction:column; gap:10px; width:100%; }
+
+/* Manual ID entry inside scanner */
+.manual-entry-row {
+  display:flex; gap:8px; margin-top:4px; width:100%;
+}
+.manual-id-input {
+  flex:1; padding:13px 14px;
+  background:rgba(15,23,42,.85); border:1px solid var(--border);
+  border-radius:11px; color:var(--text); font-size:15px;
+  font-family:var(--font); outline:none;
+  transition:border-color .2s, box-shadow .2s;
+  text-transform:uppercase; letter-spacing:.06em;
+}
+.manual-id-input:focus { border-color:var(--mg); box-shadow:0 0 0 3px rgba(245,158,11,.1); }
+.manual-id-input::placeholder { color:var(--text-3); text-transform:none; letter-spacing:0; }
+
+/* ================================================================
+   LANGUAGE SWITCHER
+================================================================ */
+.lang-switcher {
+  display:inline-flex; align-items:center;
+  background:var(--card); backdrop-filter:blur(12px);
+  border:1px solid var(--border); border-radius:100px;
+  padding:3px 4px; gap:2px;
+}
+.lang-btn {
+  background:none; border:none; color:var(--text-3);
+  font-size:12px; font-weight:700; cursor:pointer;
+  padding:4px 8px; border-radius:100px;
+  transition:all .2s; font-family:var(--font); line-height:1;
+}
+.lang-btn.lang-active { background:rgba(245,158,11,.18); color:var(--mg); }
+#lang-pin { position:absolute; top:20px; right:20px; z-index:10; }
+
+/* ================================================================
+   LANDSCAPE & SMALL SCREEN
+================================================================ */
+@media (max-height: 500px) and (orientation: landscape) {
+  .mgr-header-logo { width:60px; }
+  .pin-logo        { width:80px; margin-bottom:16px; }
+  .camera-window   { aspect-ratio:4/3; }
+  .keypad          { gap:6px; }
+  .key             { min-height:44px; padding:10px 0; font-size:18px; }
+}
+@media (max-width:380px) {
+  .body-wrap, .scanner-body, .profile-body { padding:16px; }
+  .daily-count  { font-size:34px; }
+  .progress-row { grid-template-columns:1fr 1fr; }
+}
+
+/* ================================================================
+   MISC UTILS
+================================================================ */
+.mt-8 { margin-top:8px; }
+.mb-0 { margin-bottom:0; }
+</style>
+</head>
+<body>
+<div id="app">
+<div id="toasts"></div>
+
+<!-- Confirm Action Sheet -->
+<div id="confirm-overlay">
+  <div class="confirm-sheet">
+    <div class="confirm-title" id="confirm-title">Confirm Action</div>
+    <div class="confirm-sub"   id="confirm-sub">Are you sure?</div>
+    <div class="confirm-btns">
+      <button class="btn btn-ghost" onclick="closeConfirm()" data-i18n="btn.cancel">გაუქმება</button>
+      <button class="btn btn-mg"    id="confirm-ok-btn" onclick="executeConfirmedAction()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     VIEW: PIN
+================================================================ -->
+<div id="view-pin" class="view active" style="position:relative;">
+  <div class="lang-switcher" id="lang-pin">
+    <button class="lang-btn lang-active" data-lang="ge" onclick="setLanguage('ge')">🇬🇪 GE</button>
+    <button class="lang-btn"             data-lang="en" onclick="setLanguage('en')">🇬🇧 EN</button>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px 24px;">
+    <img src="https://drive.google.com/thumbnail?sz=w1000&id=1ldsE4D9iyiwK5zE2hdweZqGHvIehp336"
+         alt="ESG" class="pin-logo" draggable="false">
+    <div class="pin-title" data-i18n="pin.title">მენეჯერის წვდომა</div>
+    <div class="pin-sub"   data-i18n="pin.sub">შეიყვანეთ 4-ნიშნა კოდი</div>
+
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+    </div>
+
+    <div class="keypad">
+      <button class="key" onclick="keyPress('1')">1</button>
+      <button class="key" onclick="keyPress('2')">2</button>
+      <button class="key" onclick="keyPress('3')">3</button>
+      <button class="key" onclick="keyPress('4')">4</button>
+      <button class="key" onclick="keyPress('5')">5</button>
+      <button class="key" onclick="keyPress('6')">6</button>
+      <button class="key" onclick="keyPress('7')">7</button>
+      <button class="key" onclick="keyPress('8')">8</button>
+      <button class="key" onclick="keyPress('9')">9</button>
+      <button class="key key-del" onclick="keyDel()">⌫</button>
+      <button class="key" onclick="keyPress('0')">0</button>
+      <button class="key key-ok" onclick="keySubmit()">✓</button>
+    </div>
+
+    <div class="pin-err-text" id="pin-err"></div>
+  </div>
+</div>
+
+<!-- ================================================================
+     VIEW: DASHBOARD
+================================================================ -->
+<div id="view-dashboard" class="view">
+  <header class="mgr-header">
+    <img src="https://drive.google.com/thumbnail?sz=w1000&id=1ldsE4D9iyiwK5zE2hdweZqGHvIehp336"
+         alt="ESG" class="mgr-header-logo" draggable="false">
+    <span class="mgr-badge" data-i18n="badge.manager">მენეჯერი</span>
+    <div class="lang-switcher" style="margin-left:4px">
+      <button class="lang-btn" data-lang="ge" onclick="setLanguage('ge')">🇬🇪</button>
+      <button class="lang-btn" data-lang="en" onclick="setLanguage('en')">🇬🇧</button>
+    </div>
+    <button class="mgr-logout" onclick="doMgrLogout()" data-i18n="btn.lock">დაბლოკვა</button>
+  </header>
+
+  <div class="body-wrap">
+
+    <!-- Daily Total -->
+    <div class="card daily-card">
+      <div class="daily-icon">🚗</div>
+      <div class="daily-info">
+        <div class="daily-label" data-i18n="daily.label">დღევანდელი რეცხვები</div>
+        <div class="daily-count" id="daily-count">–</div>
+        <div class="daily-sub"   id="daily-sub">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Scan CTA -->
+    <div class="scan-cta">
+      <button class="btn btn-mg btn-full" style="padding:18px;font-size:16px" onclick="openScanner()">
+        <span style="font-size:20px">⬡</span> <span data-i18n="btn.scan">კლიენტის QR სკანირება</span>
+      </button>
+    </div>
+
+    <!-- Feed -->
+    <div class="card history-card">
+      <div class="section-label" data-i18n="feed.label">დღევანდელი სკანირება</div>
+      <div class="history-feed" id="history-feed">
+        <div class="feed-empty">No scans yet today.</div>
+      </div>
+    </div>
+
+    <!-- Signage / Printable QR -->
+    <div class="card signage-card">
+      <div class="section-label">Customer Signage</div>
+
+      <!-- Editable URL — manager verifies before printing -->
+      <div class="signage-url-row">
+        <div class="signage-url-label">
+          App URL encoded in QR
+          <span class="signage-url-hint">Paste your /exec URL if wrong</span>
+        </div>
+        <input
+          type="url"
+          id="signage-url-input"
+          class="signage-url-input"
+          placeholder="https://script.google.com/macros/s/.../exec"
+          oninput="onSignageUrlChange(this.value)"
+        >
+        <div class="signage-url-status" id="signage-url-status"></div>
+      </div>
+
+      <div class="signage-preview">
+        <div class="signage-qr-thumb">
+          <img id="signage-qr-thumb" src="" alt="QR">
+        </div>
+        <div class="signage-info">
+          <div class="signage-info-title">Printable Loyalty Sign</div>
+          <div class="signage-info-sub">Display at the wash bay so customers can scan and register instantly.</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-full" id="btn-signage" onclick="generateSignage()" disabled>
+        <span style="font-size:17px">🖨</span> Generate Customer Signage
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     VIEW: SCANNER
+================================================================ -->
+<div id="view-scanner" class="view">
+  <header class="mgr-header">
+    <img src="https://drive.google.com/thumbnail?sz=w1000&id=1ldsE4D9iyiwK5zE2hdweZqGHvIehp336"
+         alt="ESG" class="mgr-header-logo" draggable="false">
+    <span class="mgr-badge" data-i18n="badge.scanner">სკანერი</span>
+    <button class="mgr-logout" onclick="cancelScan()" data-i18n="btn.cancel">გაუქმება</button>
+  </header>
+
+  <div class="scanner-body">
+    <div class="scanner-title-row">
+      <div class="scanner-title" data-i18n="scanner.title">წევრის QR სკანირება</div>
+    </div>
+
+    <div class="camera-window">
+      <div id="qr-reader"></div>
+      <!-- Viewfinder overlay -->
+      <div class="vf-overlay">
+        <div class="vf-box">
+          <span class="vf-corner tl"></span>
+          <span class="vf-corner tr"></span>
+          <span class="vf-corner bl"></span>
+          <span class="vf-corner br"></span>
+          <div class="vf-beam"></div>
+        </div>
+      </div>
+      <!-- Permission Helper (shown on camera errors) -->
+      <div class="perm-helper" id="perm-helper" style="display:none">
+        <div class="perm-emoji" id="perm-emoji">📷</div>
+        <div class="perm-title" id="perm-title">Camera Access Needed</div>
+        <div class="perm-body"  id="perm-body">Grant camera permission to scan member QR codes.</div>
+        <div class="perm-steps" id="perm-steps"></div>
+        <div class="perm-actions">
+          <button class="btn btn-mg btn-full" onclick="retryCamera()">↺ &nbsp;Try Again</button>
+          <button class="btn btn-ghost btn-full" onclick="showManualEntry()">⌨ &nbsp;Enter Member ID Manually</button>
+        </div>
+      </div>
+    </div>
+
+    <p class="scanner-hint" id="scanner-hint" data-i18n="scanner.hint">კამერა მიუახლოვეთ QR კოდს. სკანირება ავტომატურია.</p>
+    <p class="scanner-status looking" id="scan-status">Initialising camera…</p>
+
+    <!-- Manual entry (fallback when camera unavailable) -->
+    <div id="manual-entry-area" style="display:none;margin-top:12px">
+      <div class="section-label" style="margin-bottom:10px">Enter Member ID</div>
+      <div class="manual-entry-row">
+        <input
+          type="text"
+          id="manual-id-input"
+          class="manual-id-input"
+          placeholder="e.g. ESG-1234"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="characters"
+          spellcheck="false"
+          maxlength="8"
+        >
+        <button class="btn btn-mg" style="padding:0 20px;min-width:80px" onclick="lookupManualId()">Look up</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     VIEW: PROFILE
+================================================================ -->
+<div id="view-profile" class="view">
+  <header class="mgr-header">
+    <img src="https://drive.google.com/thumbnail?sz=w1000&id=1ldsE4D9iyiwK5zE2hdweZqGHvIehp336"
+         alt="ESG" class="mgr-header-logo" draggable="false">
+    <span class="mgr-badge" data-i18n="badge.member">წევრი</span>
+    <button class="mgr-logout" onclick="backToScanner()" data-i18n="btn.rescan">ხელახლა სკანირება</button>
+  </header>
+
+  <div class="profile-body">
+
+    <div class="profile-header-row">
+      <button class="profile-back-btn" onclick="backToDash()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        <span data-i18n="btn.dashboard">დაფა</span>
+      </button>
+    </div>
+
+    <!-- Identity Strip -->
+    <div class="card identity-strip">
+      <div class="avatar-ring" id="p-avatar">?</div>
+      <div class="identity-info">
+        <div class="identity-name"  id="p-name">–</div>
+        <div class="identity-uid"   id="p-uid">–</div>
+        <div class="identity-phone" id="p-phone">–</div>
+        <span class="identity-status is-active" id="p-status-pill">
+          <span class="is-pip"></span>
+          <span id="p-status-txt">Active</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Progress Mini Cards -->
+    <div class="progress-row">
+      <!-- 9-Wash Cycle -->
+      <div class="card prog-card">
+        <div class="prog-label">Free Wash Cycle</div>
+        <div class="prog-mini-steps" id="p-cycle-dots"></div>
+        <div class="prog-val prog-val-blue" id="p-cycle-val">0/9</div>
+        <div class="prog-sub" id="p-cycle-sub">washes this cycle</div>
+      </div>
+      <!-- Monthly Streak -->
+      <div class="card prog-card">
+        <div class="prog-label">Monthly Streak</div>
+        <div class="prog-mini-steps" id="p-streak-dots"></div>
+        <div class="prog-val prog-val-green" id="p-streak-val">0/4</div>
+        <div id="p-vip-tag" style="display:none" class="vip-tag">👑 VIP Unlocked</div>
+        <div class="prog-sub" id="p-streak-sub">this month</div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-area">
+
+      <button class="btn-action wash-action" id="btn-std-wash" onclick="promptAction('standard')">
+        <div class="action-icon">🫧</div>
+        <div class="action-btn-inner">
+          <div class="action-btn-title" data-i18n="action.wash.title">სტანდარტული რეცხვის დადასტურება</div>
+          <div class="action-btn-sub" id="btn-std-sub">Records wash &amp; updates cycle</div>
+        </div>
+      </button>
+
+      <button class="btn-action vip-action" id="btn-vip" onclick="promptAction('monthly')" disabled>
+        <div class="action-icon">👑</div>
+        <div class="action-btn-inner">
+          <div class="action-btn-title" data-i18n="action.vip.title">VIP სალონის გამოყენება</div>
+          <div class="action-btn-sub" id="btn-vip-sub">Requires 4 washes this month</div>
+        </div>
+      </button>
+
+      <div class="action-locked-reason" id="vip-locked-reason"></div>
+
+    </div>
+
+    <!-- Member note -->
+    <div style="text-align:center;font-size:12px;color:var(--text-3);padding:0 0 24px">
+      Since <span id="p-since">–</span> &nbsp;·&nbsp; Lifetime: <span id="p-lifetime">0</span> washes
+    </div>
+
+  </div>
+</div><!-- end view-profile -->
+
+</div><!-- end #app -->
+
+<script>
+/* ================================================================
+   API — must match the value in index.html
+================================================================ */
+const API_URL = 'https://script.google.com/macros/s/AKfycbwrJGdcEtmndiQtLjGXWumSH0elfXLbZnZvjkWgu-mtgh6hQ-pOjDvq9Ei0Z8YMqZZV/exec';
+
+function api(data) {
+  return fetch(API_URL, {
+    method:   'POST',
+    headers:  { 'Content-Type': 'text/plain;charset=utf-8' },
+    body:     JSON.stringify(data),
+    redirect: 'follow'
+  })
+  .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .catch(err => { L.error('api', err); throw err; });
+}
+
+/* ================================================================
+   TRANSLATIONS (manager-specific + shared keys)
+================================================================ */
+const TM = {
+  ge: {
+    'pin.title':'მენეჯერის წვდომა', 'pin.sub':'შეიყვანეთ 4-ნიშნა კოდი',
+    'daily.label':'დღევანდელი რეცხვები',
+    'btn.scan':'კლიენტის QR სკანირება',
+    'feed.label':'დღევანდელი სკანირება', 'feed.empty':'სკანირება ჯერ არ ყოფილა.',
+    'badge.manager':'მენეჯერი', 'badge.scanner':'სკანერი', 'badge.member':'წევრი',
+    'btn.lock':'დაბლოკვა', 'btn.rescan':'ხელახლა სკანირება', 'btn.dashboard':'დაფა',
+    'scanner.title':'წევრის QR სკანირება',
+    'scanner.hint':'კამერა მიუახლოვეთ QR კოდს. სკანირება ავტომატურია.',
+    'scanner.ready':'📷  მზადაა — მიუახლოვეთ QR კოდს',
+    'action.wash.title':'სტანდარტული რეცხვის დადასტურება',
+    'action.vip.title':'VIP სალონის გამოყენება',
+    'btn.confirm':'დადასტურება', 'btn.cancel':'გაუქმება',
+    'confirm.wash.title':'სტანდარტული რეცხვა', 'confirm.vip.title':'სალონის წმენდა',
+    'err.pin.wrong':'არასწორი PIN. ხელახლა სცადეთ.', 'err.conn':'კავშირის შეცდომა.',
+    'wash.standard':'სტანდარტული რეცხვა', 'wash.free':'უფასო რეცხვა (ჯილდო)',
+    'wash.interior':'VIP სალონის წმენდა (ჯილდო)',
+    'toast.wash':'{left} რეცხვა უფასომდე',
+    'toast.free.cycle':'🎁 9-ციკლი დასრულდა! უფასო რეცხვა!',
+    'toast.vip.redeemed':'👑 VIP სალონის წმენდა — დამუშავდა!',
+    'toast.free.redeemed':'✓ უფასო რეცხვა გამოიყენა — ახალი ციკლი!',
+    'signage.label':'კლიენტის ნიშანი', 'signage.btn':'ნიშნის გენერაცია',
+  },
+  en: {
+    'pin.title':'Manager Access', 'pin.sub':'Enter your 4-digit access code',
+    'daily.label':'Today\'s Washes',
+    'btn.scan':'Scan Client QR',
+    'feed.label':'Today\'s Scan Feed', 'feed.empty':'No scans yet today.',
+    'badge.manager':'Manager', 'badge.scanner':'Scanner', 'badge.member':'Member',
+    'btn.lock':'Lock', 'btn.rescan':'Re-scan', 'btn.dashboard':'Dashboard',
+    'scanner.title':'Scan Member QR',
+    'scanner.hint':'Position the member\'s QR code inside the frame.',
+    'scanner.ready':'📷  Ready — point at member QR code',
+    'action.wash.title':'Confirm Standard Wash',
+    'action.vip.title':'Redeem Monthly Interior',
+    'btn.confirm':'Confirm', 'btn.cancel':'Cancel',
+    'confirm.wash.title':'Confirm Standard Wash', 'confirm.vip.title':'Redeem Interior Cleaning',
+    'err.pin.wrong':'Incorrect PIN. Try again.', 'err.conn':'Connection error.',
+    'wash.standard':'Standard Wash', 'wash.free':'Free Wash (Reward)',
+    'wash.interior':'Interior Cleaning (Monthly Reward)',
+    'toast.wash':'{left} more to free wash',
+    'toast.free.cycle':'🎁 Free wash cycle complete!',
+    'toast.vip.redeemed':'👑 Interior Cleaning redeemed!',
+    'toast.free.redeemed':'✓ Free wash redeemed — new cycle started!',
+    'signage.label':'Customer Signage', 'signage.btn':'Generate Customer Signage',
+  }
+};
+
+let currentLang = localStorage.getItem('esg_lang') || 'ge';
+
+function tr(key, vars) {
+  const lang = TM[currentLang] || TM.ge;
+  let s = lang[key] || TM.en[key] || key;
+  if (vars) Object.keys(vars).forEach(k => { s = s.replace('{'+k+'}', vars[k]); });
+  return s;
+}
+
+function setLanguage(lang) {
+  currentLang = lang;
+  localStorage.setItem('esg_lang', lang);
+  document.querySelectorAll('[data-lang]').forEach(b =>
+    b.classList.toggle('lang-active', b.dataset.lang === lang)
+  );
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = tr(el.getAttribute('data-i18n'));
+  });
+}
+
+/* ================================================================
+   LOGGER
+================================================================ */
+const L = { log:(...a)=>console.log('[MGR]',...a), error:(...a)=>console.error('[MGR]',...a) };
+
+/* ================================================================
+   STATE
+================================================================ */
+const Mgr = {
+  authed:     false,
+  user:       null,
+  stats:      null,
+  pendingAct: null,   // 'standard' | 'monthly'
+  scanner:    null,   // Html5Qrcode instance
+  scannerRunning: false,
+  appUrl:     ''      // deployed web app URL, fetched on dashboard load
+};
+
+/* ================================================================
+   VIEWS
+================================================================ */
+function showView(id) {
+  const cur  = document.querySelector('.view.active');
+  const next = document.getElementById(id);
+  if (!next || cur===next) return;
+  if (cur) cur.classList.remove('active');
+  requestAnimationFrame(()=>{ next.classList.add('active'); window.scrollTo({top:0}); });
+}
+
+/* ================================================================
+   TOAST
+================================================================ */
+function toast(msg, type='inf', dur=3500) {
+  const c=document.getElementById('toasts');
+  const t=document.createElement('div');
+  t.className=`toast toast-${type}`; t.textContent=msg;
+  c.appendChild(t);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('in')));
+  setTimeout(()=>{ t.classList.remove('in'); setTimeout(()=>t.remove(),320); }, dur);
+}
+
+/* ================================================================
+   AUDIO + HAPTIC FEEDBACK
+================================================================ */
+function playTone(f1,f2,dur,vol=0.18) {
+  try {
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator(), gain=ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type='sine';
+    osc.frequency.setValueAtTime(f1,ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(f2,ctx.currentTime+dur*0.35);
+    gain.gain.setValueAtTime(vol,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+dur);
+    setTimeout(()=>ctx.close(),dur*1000+100);
+  } catch(e){}
+}
+function playScanOk()  { playTone(600,1200,.3,.2); haptic([40,20,40]); }
+function playSuccess() { playTone(880,1320,.35,.2); haptic([50,30,80]); }
+function playError()   { playTone(320,200,.4,.15);  haptic([80,40,80]); }
+function haptic(pat)   { try{ if(navigator.vibrate) navigator.vibrate(pat); }catch(e){} }
+
+/* ================================================================
+   PIN LOGIC
+================================================================ */
+let pinBuffer = '';
+
+function keyPress(digit) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += digit;
+  updatePinDots();
+  if (pinBuffer.length === 4) setTimeout(keySubmit, 180);
+}
+
+function keyDel() {
+  pinBuffer = pinBuffer.slice(0,-1);
+  updatePinDots();
+  document.getElementById('pin-err').textContent='';
+}
+
+function updatePinDots() {
+  for(let i=0;i<4;i++){
+    const d=document.getElementById('pd'+i);
+    d.classList.toggle('filled', i < pinBuffer.length);
+    d.classList.remove('error');
+  }
+}
+
+function keySubmit() {
+  if (!pinBuffer) return;
+  L.log('verifying PIN');
+  api({action:'verifyPin', pin:pinBuffer})
+    .then(r=>{
+      if (!r.success) { pinError(r.message||'Error'); return; }
+      if (r.valid) {
+        Mgr.authed = true;
+        pinBuffer = '';
+        updatePinDots();
+        loadDashboard();
+      } else {
+        pinError(tr('err.pin.wrong'));
+      }
+    })
+    .catch(e=>{ pinError(tr('err.conn')); L.error(e); });
+}
+
+function pinError(msg) {
+  const dots=document.getElementById('pin-dots');
+  dots.querySelectorAll('.pin-dot').forEach(d=>d.classList.add('error'));
+  dots.classList.add('shake');
+  setTimeout(()=>dots.classList.remove('shake'),420);
+  document.getElementById('pin-err').textContent=msg;
+  playError();
+  pinBuffer='';
+  setTimeout(updatePinDots,400);
+}
+
+/* ================================================================
+   DASHBOARD
+================================================================ */
+function loadDashboard() {
+  showView('view-dashboard');
+  refreshDailyStats();
+  fetchAndSetSignageUrl();
+}
+
+function fetchAndSetSignageUrl() {
+  // On GitHub Pages the customer portal URL is just index.html beside this file
+  const customerUrl = window.location.href.replace(/\/[^/]*$/, '/') + 'index.html';
+  const input = document.getElementById('signage-url-input');
+  if (input && !input.value.trim()) {
+    input.value = customerUrl;
+    Mgr.appUrl  = customerUrl;
+    setSignageStatus('ok', '✓ Customer portal URL detected');
+    updateSignageThumb(customerUrl);
+    document.getElementById('btn-signage').disabled = false;
+  }
+}
+
+function setSignageStatus(type, msg) {
+  const el = document.getElementById('signage-url-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.className   = 'signage-url-status ' + type;
+}
+
+// Called every time the manager edits the URL input
+function onSignageUrlChange(value) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    setSignageStatus('', '');
+    document.getElementById('signage-qr-thumb').src = '';
+    document.getElementById('btn-signage').disabled = true;
+    return;
+  }
+  if (!trimmed.startsWith('https://')) {
+    setSignageStatus('bad', 'URL must start with https://');
+    document.getElementById('btn-signage').disabled = true;
+    return;
+  }
+  // Looks good — update live thumb and enable button
+  Mgr.appUrl = trimmed;
+  setSignageStatus('ok', '✓ URL looks valid');
+  updateSignageThumb(trimmed);
+  document.getElementById('btn-signage').disabled = false;
+}
+
+function refreshDailyStats() {
+  document.getElementById('daily-count').textContent='–';
+  document.getElementById('daily-sub').textContent='Loading…';
+  document.getElementById('history-feed').innerHTML='<div class="feed-empty">Loading…</div>';
+
+  api({action:'getDailyStats'})
+    .then(renderDailyStats)
+    .catch(e=>{ L.error('daily stats',e); document.getElementById('daily-sub').textContent='Error loading'; });
+}
+
+function renderDailyStats(r) {
+  document.getElementById('daily-count').textContent = r.todayCount || 0;
+  const now = new Date();
+  document.getElementById('daily-sub').textContent =
+    now.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+
+  const feed = document.getElementById('history-feed');
+  feed.innerHTML = '';
+
+  if (!r.recentScans || r.recentScans.length === 0) {
+    feed.innerHTML = '<div class="feed-empty">No scans yet today — ready to serve customers!</div>';
+    return;
+  }
+
+  r.recentScans.forEach(scan=>{
+    const isMonthly = scan.washType === 'Interior Cleaning (Monthly Reward)';
+    const isFreeWash = scan.washType === 'Free Wash (Reward)';
+    const icon = isMonthly ? '👑' : isFreeWash ? '🎁' : '🫧';
+    const iconClass = isMonthly ? 'feed-icon-monthly' : isFreeWash ? 'feed-icon-reward' : 'feed-icon-std';
+
+    const el = document.createElement('div');
+    el.className = 'feed-item';
+    el.innerHTML=`
+      <div class="feed-time">${scan.time||'–'}</div>
+      <div class="feed-icon ${iconClass}">${icon}</div>
+      <div class="feed-text">
+        <div class="feed-name">${scan.userName||'Unknown'}</div>
+        <div class="feed-type">${scan.washType}</div>
+      </div>
+      <div class="feed-uid">${scan.userID}</div>
+    `;
+    feed.appendChild(el);
+  });
+}
+
+/* ================================================================
+   SIGNAGE GENERATOR
+================================================================ */
+function updateSignageThumb(url) {
+  if (!url) return;
+  const qr  = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=2&bgcolor=ffffff&color=020617&data='
+    + encodeURIComponent(url);
+  const img = document.getElementById('signage-qr-thumb');
+  if (img) img.src = qr;
+}
+
+function generateSignage() {
+  // Always read from the input field — the manager sees exactly what gets encoded
+  const inputEl = document.getElementById('signage-url-input');
+  const url = (inputEl && inputEl.value.trim()) || Mgr.appUrl;
+  if (!url || !url.startsWith('https://')) {
+    toast('Enter a valid https:// URL in the field above first.','err',4000);
+    if (inputEl) inputEl.focus();
+    return;
+  }
+
+  const LOGO = 'https://drive.google.com/thumbnail?sz=w1000&id=1ldsE4D9iyiwK5zE2hdweZqGHvIehp336';
+  const QR   = 'https://api.qrserver.com/v1/create-qr-code/?size=420x420&margin=4&color=020617&bgcolor=ffffff&data='
+    + encodeURIComponent(url);
+
+  // Split the script tags so the HTML parser doesn't close THIS script block early
+  const SO = '<' + 'script>';
+  const SC = '<' + '/script>';
+
+  const html = '<!DOCTYPE html>'
+    + '<html lang="en"><head>'
+    + '<meta charset="UTF-8">'
+    + '<title>ESG Car Wash — Join Rewards</title>'
+    + '<link rel="preconnect" href="https://fonts.googleapis.com">'
+    + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">'
+    + '<style>'
+    + '*{box-sizing:border-box;margin:0;padding:0}'
+    + 'body{font-family:Inter,system-ui,sans-serif;background:#fff;color:#020617;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 32px;text-align:center}'
+    + '.logo{width:250px;height:auto;margin-bottom:32px}'
+    + '.headline{font-size:30px;font-weight:900;line-height:1.2;margin-bottom:10px;max-width:480px}'
+    + '.headline span{color:#0ea5e9}'
+    + '.sub{font-size:16px;color:#64748b;margin-bottom:36px;max-width:400px;line-height:1.6}'
+    + '.qr-wrap{padding:16px;border:3px solid #0ea5e9;border-radius:20px;box-shadow:0 8px 40px rgba(14,165,233,.18);margin-bottom:28px}'
+    + '.qr-wrap img{display:block;width:300px;height:300px}'
+    + '.tag{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;border-radius:100px;background:#020617;color:#38bdf8;font-size:14px;font-weight:700;margin-bottom:20px}'
+    + '.footer{font-size:11px;color:#94a3b8;margin-top:8px}'
+    + '@media print{body{padding:20px}@page{margin:1cm}}'
+    + '</style></head><body>'
+    + '<img class="logo" src="' + LOGO + '" alt="ESG Car Wash">'
+    + '<h1 class="headline">Scan to Join <span>ESG Rewards</span></h1>'
+    + '<p class="sub">Register your phone number and start earning — every wash counts toward your free one.</p>'
+    + '<div class="qr-wrap"><img src="' + QR + '" alt="QR Code"></div>'
+    + '<div class="tag">🎁 Get Your 10th Wash Free!</div>'
+    + '<p class="footer">ESG Car Wash &nbsp;·&nbsp; Loyalty Rewards Program</p>'
+    + SO + 'window.addEventListener("load",function(){setTimeout(function(){window.print();},900)});' + SC
+    + '</body></html>';
+
+  const win = window.open('', '_blank');
+  if (!win) { toast('Pop-up blocked — please allow pop-ups.','err',4000); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
+function doMgrLogout() {
+  Mgr.authed=false; Mgr.user=null; Mgr.stats=null;
+  pinBuffer=''; updatePinDots();
+  document.getElementById('pin-err').textContent='';
+  showView('view-pin');
+  toast('Session locked.','inf',2000);
+}
+
+/* ================================================================
+   QR SCANNER
+================================================================ */
+function setScanStatus(type, msg) {
+  const el = document.getElementById('scan-status');
+  if (!el) return;
+  el.textContent  = msg;
+  el.className    = 'scanner-status ' + type;
+}
+
+function openScanner() {
+  hidePermissionHelper();
+  // Reset manual entry fallback
+  const ma = document.getElementById('manual-entry-area');
+  const sh = document.getElementById('scanner-hint');
+  if (ma) ma.style.display = 'none';
+  if (sh) sh.style.display = 'block';
+  showView('view-scanner');
+  setScanStatus('looking', 'Initialising camera…');
+  // Delay so view transition finishes before getUserMedia fires
+  setTimeout(startQrScanner, 400);
+}
+
+async function startQrScanner() {
+  if (Mgr.scannerRunning) return;
+
+  // ── 1. HTTPS guard ──────────────────────────────────────────
+  const isSecure = location.protocol === 'https:'
+    || location.hostname === 'localhost'
+    || location.hostname === '127.0.0.1';
+  if (!isSecure) {
+    showPermissionHelper('no-https');
+    return;
+  }
+
+  // ── 2. API availability guard ────────────────────────────────
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showPermissionHelper('not-supported');
+    return;
+  }
+
+  setScanStatus('looking', 'Requesting camera access…');
+
+  // ── 3. Pre-flight permission check (triggers the browser prompt
+  //       as a direct result of the user's button tap) ──────────
+  try {
+    const probe = await navigator.mediaDevices.getUserMedia(
+      { video: { facingMode: 'environment' } }
+    );
+    // Immediately release tracks — html5-qrcode will re-acquire
+    probe.getTracks().forEach(t => t.stop());
+  } catch (permErr) {
+    handleCameraError(permErr);
+    return;
+  }
+
+  // ── 4. Start html5-qrcode ────────────────────────────────────
+  const el = document.getElementById('qr-reader');
+  el.innerHTML = '';
+
+  try {
+    Mgr.scanner = new Html5Qrcode('qr-reader');
+    await Mgr.scanner.start(
+      { facingMode: 'environment' },
+      {
+        fps: 15,
+        qrbox: { width: 240, height: 240 },
+        aspectRatio: 1.0,
+        disableFlip: false
+      },
+      handleScanSuccess,
+      () => {}            // suppress per-frame decode noise
+    );
+    Mgr.scannerRunning = true;
+    hidePermissionHelper();
+    setScanStatus('looking', '📷  Ready — point at member QR code');
+  } catch (startErr) {
+    handleCameraError(startErr);
+  }
+}
+
+function handleCameraError(err) {
+  L.error('camera', err.name, err.message);
+  const name = err.name || '';
+
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+    showPermissionHelper('denied');
+  } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+    showPermissionHelper('not-found');
+  } else if (name === 'NotReadableError' || name === 'TrackStartError') {
+    showPermissionHelper('in-use');
+  } else if (name === 'OverconstrainedError') {
+    // Retry without environment constraint
+    showPermissionHelper('overconstrained');
+  } else {
+    showPermissionHelper('generic', err.message);
+  }
+}
+
+async function retryCamera() {
+  hidePermissionHelper();
+  setScanStatus('looking', 'Retrying camera…');
+  await stopQrScanner();
+  setTimeout(startQrScanner, 300);
+}
+
+async function stopQrScanner() {
+  if (!Mgr.scannerRunning || !Mgr.scanner) return;
+  try { await Mgr.scanner.stop(); } catch(e) {}
+  try { Mgr.scanner.clear(); }     catch(e) {}
+  Mgr.scanner       = null;
+  Mgr.scannerRunning = false;
+}
+
+async function cancelScan() {
+  await stopQrScanner();
+  hidePermissionHelper();
+  showView('view-dashboard');
+}
+
+/* ── Permission Helper ─────────────────────────────────────── */
+const PERM_CONFIGS = {
+  denied: {
+    emoji: '🔒',
+    title: 'Camera Permission Blocked',
+    body:  'You previously denied camera access. Follow these steps to re-enable it:',
+    steps: isIOS()
+      ? ['Open iPhone Settings', 'Scroll to Safari (or your browser)', 'Tap Camera → Allow']
+      : isAndroid()
+      ? ['Tap the 🔒 lock icon in the address bar', "Tap 'Permissions' → Camera", "Select 'Allow' then refresh"]
+      : ["Click the camera icon in your browser's address bar", "Select 'Allow'", 'Refresh the page and try again']
+  },
+  'not-found': {
+    emoji: '📵',
+    title: 'No Camera Found',
+    body:  'No camera was detected on this device.',
+    steps: ['Make sure a camera is connected or enabled', 'Try using a different device']
+  },
+  'in-use': {
+    emoji: '⚠️',
+    title: 'Camera In Use',
+    body:  'Another app is using the camera right now.',
+    steps: ['Close other apps that may be using the camera', 'Tap "Try Again" below']
+  },
+  overconstrained: {
+    emoji: '📷',
+    title: 'Camera Constraint Error',
+    body:  'The rear camera could not be activated.',
+    steps: ['Tap "Try Again" — the front camera will be used as fallback']
+  },
+  'no-https': {
+    emoji: '🔐',
+    title: 'Secure Connection Required',
+    body:  'Camera access requires HTTPS. Open the app using its secure deployment URL.',
+    steps: ['Use the https:// link provided by your manager', 'Do not open the app via http://']
+  },
+  'not-supported': {
+    emoji: '🌐',
+    title: 'Browser Not Supported',
+    body:  'This browser does not support camera scanning.',
+    steps: ['Open this page in Chrome or Safari', 'Make sure your browser is up to date']
+  },
+  generic: {
+    emoji: '❌',
+    title: 'Camera Error',
+    body:  'An unexpected error occurred.',
+    steps: []
+  }
+};
+
+function isIOS()     { return /iphone|ipad|ipod/i.test(navigator.userAgent); }
+function isAndroid() { return /android/i.test(navigator.userAgent); }
+
+function showPermissionHelper(type, extraMsg) {
+  const cfg = PERM_CONFIGS[type] || PERM_CONFIGS.generic;
+  document.getElementById('perm-emoji').textContent = cfg.emoji;
+  document.getElementById('perm-title').textContent = cfg.title;
+  document.getElementById('perm-body').textContent  = extraMsg || cfg.body;
+
+  // Build step list
+  const stepsEl = document.getElementById('perm-steps');
+  const steps   = Array.isArray(cfg.steps) ? cfg.steps : [];
+  if (steps.length) {
+    stepsEl.style.display = 'block';
+    stepsEl.innerHTML = steps.map((s, i) =>
+      `<div class="perm-step">
+        <span class="perm-step-num">${i+1}</span>
+        <span>${s}</span>
+      </div>`
+    ).join('');
+  } else {
+    stepsEl.style.display = 'none';
+  }
+
+  document.getElementById('perm-helper').style.display = 'flex';
+  setScanStatus('err', cfg.title);
+  L.log('permission helper shown:', type);
+}
+
+function hidePermissionHelper() {
+  const el = document.getElementById('perm-helper');
+  if (el) el.style.display = 'none';
+}
+
+/* ── Manual ID entry fallback ──────────────────────────────── */
+function showManualEntry() {
+  hidePermissionHelper();
+  const area = document.getElementById('manual-entry-area');
+  if (area) {
+    area.style.display = 'block';
+    document.getElementById('scanner-hint').style.display = 'none';
+    const inp = document.getElementById('manual-id-input');
+    if (inp) { inp.value = ''; setTimeout(()=>inp.focus(), 100); }
+  }
+  setScanStatus('looking', 'Type the member ID printed below their QR code');
+}
+
+function lookupManualId() {
+  const inp = document.getElementById('manual-id-input');
+  const uid = (inp ? inp.value.trim().toUpperCase() : '');
+  if (!uid) { toast('Enter a member ID first.','err'); return; }
+  setScanStatus('found', '🔍 Looking up ' + uid + '…');
+  document.getElementById('manual-entry-area').style.display = 'none';
+  document.getElementById('scanner-hint').style.display = 'block';
+  lookupUser(uid);
+}
+
+// Allow Enter key to submit manual lookup
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('manual-id-input');
+  if (inp) inp.addEventListener('keypress', e => { if (e.key === 'Enter') lookupManualId(); });
+});
+
+async function cancelScan2() { /* alias kept for safety */ await cancelScan(); }
+
+function handleScanSuccess(decodedText) {
+  // Validate it looks like an ESG ID
+  const cleaned = (decodedText||'').trim();
+  L.log('scanned', cleaned);
+
+  // Accept any non-empty string but warn if not ESG format
+  if (!cleaned) return;
+
+  playScanOk();
+  document.getElementById('scan-status').textContent='✓ QR Detected — looking up member…';
+  document.getElementById('scan-status').className='scanner-status found';
+
+  stopQrScanner();
+  lookupUser(cleaned);
+}
+
+function lookupUser(uid) {
+  api({action:'getUserByID', userID:uid})
+    .then(r=>{
+      L.log('lookup result',r);
+      if (!r.success) { handleLookupError(r.message||'Database error'); return; }
+      if (!r.found)   { handleLookupError('Member "'+uid+'" not found in database.'); return; }
+      Mgr.user  = r.user;
+      Mgr.stats = r.stats;
+      renderProfile(r.user, r.stats);
+      showView('view-profile');
+    })
+    .catch(e=>{ handleLookupError('Connection error: '+e.message); });
+}
+
+function handleLookupError(msg) {
+  playError();
+  document.getElementById('scan-status').textContent='✕ '+msg;
+  document.getElementById('scan-status').className='scanner-status err';
+  toast(msg,'err',4000);
+  // Re-start scanner after 2.5s
+  setTimeout(()=>{
+    document.getElementById('scan-status').textContent=tr('scanner.ready');
+    document.getElementById('scan-status').className='scanner-status looking';
+    startQrScanner();
+  }, 2600);
+}
+
+async function backToScanner() {
+  await stopQrScanner();
+  showView('view-scanner');
+  setTimeout(startQrScanner, 340);
+}
+
+/* ================================================================
+   PROFILE RENDER
+================================================================ */
+function renderProfile(u, s) {
+  const stats        = s || {};
+  const cycle        = parseInt(u.currentCycle) || 0;
+  const isReward     = u.memberStatus === 'Reward Available';
+  const monthly      = stats.monthlyStreak || 0;
+  const vipUnlocked  = monthly >= 4;
+  const vipRedeemed  = stats.monthlyRewardRedeemed || false;
+  const lifetime     = stats.lifetimeTotal || u.totalWashes || 0;
+
+  // Identity
+  document.getElementById('p-avatar').textContent = (u.fullName||'?')[0].toUpperCase();
+  document.getElementById('p-name').textContent   = u.fullName;
+  document.getElementById('p-uid').textContent    = u.userID;
+  document.getElementById('p-phone').textContent  = u.phoneNumber;
+  document.getElementById('p-since').textContent  = u.memberSince || '–';
+  document.getElementById('p-lifetime').textContent = lifetime;
+
+  const pill    = document.getElementById('p-status-pill');
+  const pillTxt = document.getElementById('p-status-txt');
+  pill.className = 'identity-status ' + (isReward ? 'is-reward' : 'is-active');
+  pillTxt.textContent = isReward ? '🎁 Free Wash Available' : 'Active Member';
+
+  // Cycle mini dots
+  const cycleDots = document.getElementById('p-cycle-dots');
+  cycleDots.innerHTML = '';
+  for(let i=1;i<=9;i++){
+    const d=document.createElement('div');
+    d.className='prog-mini-dot'+(i<=cycle?' done':'');
+    cycleDots.appendChild(d);
+  }
+  document.getElementById('p-cycle-val').textContent = isReward ? '9/9 ✓' : cycle+'/9';
+  document.getElementById('p-cycle-sub').textContent = isReward ? 'Free wash ready!' : (9-cycle)+' more to free wash';
+
+  // Streak mini dots
+  const streakDots = document.getElementById('p-streak-dots');
+  streakDots.innerHTML = '';
+  const disp = Math.min(monthly, 4);
+  for(let i=1;i<=4;i++){
+    const d=document.createElement('div');
+    d.className='prog-mini-dot'+(i<=disp?' green-done':'');
+    streakDots.appendChild(d);
+  }
+  document.getElementById('p-streak-val').textContent = disp+'/4';
+  document.getElementById('p-vip-tag').style.display  = vipUnlocked ? 'inline-flex' : 'none';
+  document.getElementById('p-streak-sub').textContent = vipRedeemed ? 'Redeemed ✓' : monthly+' wash'+(monthly!==1?'es':'')+' this month';
+
+  // Standard wash button subtitle
+  const stdSub = document.getElementById('btn-std-sub');
+  if (isReward) {
+    stdSub.textContent = 'Will redeem free wash & start new cycle';
+  } else {
+    stdSub.textContent = 'Records wash · cycle: '+cycle+'/9 · '+(9-cycle)+' left';
+  }
+
+  // VIP button
+  const vipBtn    = document.getElementById('btn-vip');
+  const vipSub    = document.getElementById('btn-vip-sub');
+  const vipReason = document.getElementById('vip-locked-reason');
+  if (vipUnlocked && !vipRedeemed) {
+    vipBtn.disabled = false;
+    vipSub.textContent = 'Monthly goal reached — tap to redeem';
+    vipReason.textContent = '';
+  } else if (vipRedeemed) {
+    vipBtn.disabled = true;
+    vipSub.textContent = 'Already redeemed this month';
+    vipReason.textContent = '✓ Interior Cleaning already claimed this month';
+  } else {
+    vipBtn.disabled = true;
+    vipSub.textContent = 'Need '+Math.max(0,4-monthly)+' more wash'+(Math.max(0,4-monthly)!==1?'es':'')+' to unlock';
+    vipReason.textContent = monthly+'/4 washes this month — needs 4 to unlock';
+  }
+}
+
+function backToDash() {
+  showView('view-dashboard');
+  refreshDailyStats();
+}
+
+/* ================================================================
+   ACTION FLOW: PROMPT → CONFIRM → EXECUTE
+================================================================ */
+function promptAction(type) {
+  Mgr.pendingAct = type;
+  const u = Mgr.user;
+
+  if (type === 'standard') {
+    const isRedeeming = u.memberStatus === 'Reward Available';
+    document.getElementById('confirm-title').textContent = isRedeeming ? 'Redeem Free Wash' : 'Confirm Standard Wash';
+    document.getElementById('confirm-sub').textContent   = isRedeeming
+      ? u.fullName+' has a free wash ready. This will reset their 9-wash cycle.'
+      : 'Record a standard wash for '+u.fullName+'?';
+    document.getElementById('confirm-ok-btn').className='btn btn-mg';
+    document.getElementById('confirm-ok-btn').textContent='Confirm';
+  } else {
+    document.getElementById('confirm-title').textContent = 'Redeem Interior Cleaning';
+    document.getElementById('confirm-sub').textContent   = u.fullName+' has completed their monthly streak of 4 washes. Redeem their free VIP Interior Cleaning?';
+    document.getElementById('confirm-ok-btn').className='btn btn-ok';
+    document.getElementById('confirm-ok-btn').textContent='Redeem VIP';
+  }
+
+  document.getElementById('confirm-overlay').classList.add('show');
+}
+
+function closeConfirm() {
+  document.getElementById('confirm-overlay').classList.remove('show');
+  Mgr.pendingAct = null;
+}
+
+function executeConfirmedAction() {
+  const type = Mgr.pendingAct;
+  const uid  = Mgr.user?.userID;
+  closeConfirm();
+  if (!type || !uid) return;
+
+  // Disable buttons while processing
+  document.getElementById('btn-std-wash').disabled = true;
+  document.getElementById('btn-vip').disabled       = true;
+
+  const washType = type === 'monthly'
+    ? 'Interior Cleaning (Monthly Reward)'
+    : 'Standard Wash';
+
+  L.log('executing', washType, uid);
+
+  api({action:'logWashByManager', userID:uid, washType:washType})
+    .then(r=>{
+      document.getElementById('btn-std-wash').disabled = false;
+      L.log('action result', r);
+
+      if (!r.success) {
+        playError();
+        toast(r.message || 'Error recording wash', 'err', 4000);
+        return;
+      }
+
+      playSuccess();
+      Mgr.user  = r.user;
+      Mgr.stats = r.stats;
+      renderProfile(r.user, r.stats);
+      refreshDailyStats();
+
+      if (type === 'monthly') {
+        toast(tr('toast.vip.redeemed'), 'wow', 5000);
+      } else if (r.rewardEarned) {
+        toast(tr('toast.free.cycle'), 'inf', 5000);
+      } else if (r.isRedemption) {
+        toast(tr('toast.free.redeemed'), 'ok', 4000);
+      } else {
+        const left = 9 - (parseInt(r.user.currentCycle)||0);
+        toast(tr('toast.wash', {left}), 'ok', 3500);
+      }
+    })
+    .catch(e=>{
+      document.getElementById('btn-std-wash').disabled = false;
+      document.getElementById('btn-vip').disabled      = false;
+      playError();
+      L.error('action err', e);
+      toast('Connection error. Please try again.', 'err', 4000);
+    });
+}
+
+/* ================================================================
+   INIT
+================================================================ */
+document.addEventListener('DOMContentLoaded', ()=>{
+  L.log('ESG Manager Portal ready');
+  setLanguage(currentLang);
+  api({action:'setup'})
+    .then(r=>L.log('setup',r))
+    .catch(e=>L.warn('setup err — check API_URL is set correctly',e));
+});
+</script>
+</body>
+</html>
