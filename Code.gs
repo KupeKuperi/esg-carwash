@@ -10,6 +10,10 @@ var LEGACY_SHEET  = "Database";
 
 var STREAK_MAX = 9;               // Washes needed to earn a reward choice
 
+// ── ERP Integration ──────────────────────────────────────────
+// Spreadsheet ID of the ESG Car Wash Manager ERP (Daily sheet)
+var ERP_SPREADSHEET_ID = "1ufhpPY_J366QJ1qf5wEjpvlbHVORIZX59EBwbn3NZsc";
+
 // Users columns (0-based) — Balance + Notes added at the end
 var U = { USERID:0, FULLNAME:1, PHONE:2, TOTAL:3, CYCLE:4, STATUS:5, SINCE:6, BALANCE:7, NOTES:8 };
 var USERS_HDR = ["UserID","FullName","PhoneNumber","TotalLifetimeWashes","CurrentCycle","MemberStatus","MemberSince","Balance","Notes"];
@@ -307,13 +311,52 @@ function incrementWash(uid) {
 //  washType: "Standard Wash" | "Interior Cleaning (Monthly Reward)"
 function logWashByManager(userID, washType) {
   try {
+    var result;
     if (washType === "Interior Cleaning (Monthly Reward)") {
-      return redeemMonthlyReward_(userID);
+      result = redeemMonthlyReward_(userID);
+    } else {
+      result = logWash_(userID, washType);
     }
-    return logWash_(userID, washType);
+    // Mirror every successful manager scan into the ERP washing list
+    if (result.success) {
+      try { syncToERP_(userID, washType, result.user); }
+      catch(erpErr) { Logger.log("ERP sync skipped: " + erpErr.message); }
+    }
+    return result;
   } catch (e) {
     return { success:false, message:e.message };
   }
+}
+
+// ─── syncToERP_ ──────────────────────────────────────────────
+// Writes a row into the ERP's Daily sheet so the manager terminal
+// sees the loyalty scan in its washing list automatically.
+function syncToERP_(userID, washType, userData) {
+  var erpSS    = SpreadsheetApp.openById(ERP_SPREADSHEET_ID);
+  var erpSheet = erpSS.getSheetByName("Daily");
+  if (!erpSheet) return;
+
+  // Map loyalty wash types to ERP Georgian labels
+  var erpWashType = "სტანდარტი";
+  if (washType && washType.indexOf("Interior") !== -1) erpWashType = "შიგნიდან";
+  else if (washType && washType.indexOf("Free")    !== -1) erpWashType = "სხვა";
+
+  var customerName = (userData && userData.fullName) ? userData.fullName : userID;
+  var phone        = (userData && userData.phoneNumber) ? userData.phoneNumber : "";
+  var notes        = "L:" + userID + (phone ? " | T:" + phone : "");
+
+  // Columns: Plate, CarType, WashType, Cost, Payment, Box, Timestamp, Notes, Status
+  erpSheet.appendRow([
+    customerName,   // Plate — customer name (loyalty entry)
+    "სედანი",       // Car type default (update in ERP if needed)
+    erpWashType,    // Mapped wash type
+    0,              // Cost — loyalty wash, update in ERP if needed
+    "Pending",      // Payment status
+    "Box 1",        // Box default
+    new Date(),     // Timestamp
+    notes,          // Loyalty ID + phone
+    "Pending"       // Row status
+  ]);
 }
 
 // ─── getDailyStats ───────────────────────────────────────────
