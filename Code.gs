@@ -11,8 +11,8 @@ var LEGACY_SHEET  = "Database";
 var STREAK_MAX = 9;               // Washes needed to earn a reward choice
 
 // ── ERP Integration ──────────────────────────────────────────
-// Deployed URL of the ESG Car Wash Manager ERP web app
-var ERP_API_URL = "https://script.google.com/macros/s/AKfycbymraoQGpi9yGe8awT6zRJU004_ptbQ2Mhwpj3j2OkOvDBiy87p84D99o0u_6j69b2I/exec";
+// Sync is handled directly from the browser (manager.html) to avoid
+// GAS-to-GAS authentication issues. See syncToERP() in manager.html.
 
 // Users columns (0-based) — Balance + Notes added at the end
 var U = { USERID:0, FULLNAME:1, PHONE:2, TOTAL:3, CYCLE:4, STATUS:5, SINCE:6, BALANCE:7, NOTES:8 };
@@ -317,51 +317,12 @@ function logWashByManager(userID, washType) {
     } else {
       result = logWash_(userID, washType);
     }
-    // Mirror every successful manager scan into the ERP washing list
-    if (result.success) {
-      try {
-        syncToERP_(userID, washType, result.user);
-        result.erpSynced = true;
-      } catch(erpErr) {
-        Logger.log("ERP sync error: " + erpErr.message);
-        result.erpSynced = false;
-        result.erpError  = erpErr.message;
-      }
-    }
     return result;
   } catch (e) {
     return { success:false, message:e.message };
   }
 }
 
-// ─── syncToERP_ ──────────────────────────────────────────────
-// Posts the wash entry to the ERP web app's doPost endpoint so
-// the manager terminal sees it in the washing list automatically.
-function syncToERP_(userID, washType, userData) {
-  // Map loyalty wash types to ERP Georgian labels
-  var erpWashType = "სტანდარტი";
-  if (washType && washType.indexOf("Interior") !== -1) erpWashType = "შიგნიდან";
-  else if (washType && washType.indexOf("Free") !== -1) erpWashType = "სხვა";
-
-  var payload = {
-    action:       "addLoyaltyEntry",
-    userID:       userID,
-    customerName: (userData && userData.fullName)    ? userData.fullName    : userID,
-    phone:        (userData && userData.phoneNumber) ? userData.phoneNumber : "",
-    erpWashType:  erpWashType
-  };
-
-  var response = UrlFetchApp.fetch(ERP_API_URL, {
-    method:             "post",
-    contentType:        "application/json",
-    payload:            JSON.stringify(payload),
-    followRedirects:    true,
-    muteHttpExceptions: true
-  });
-
-  var result = JSON.parse(response.getContentText());
-  if (!result.success) throw new Error(result.message || "ERP rejected the entry");
-}
 
 // ─── getDailyStats ───────────────────────────────────────────
 function getDailyStats() {

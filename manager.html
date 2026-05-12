@@ -950,6 +950,32 @@ body::before {
 ================================================================ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbwrJGdcEtmndiQtLjGXWumSH0elfXLbZnZvjkWgu-mtgh6hQ-pOjDvq9Ei0Z8YMqZZV/exec';
 
+// ERP Manager Terminal — receives loyalty scans directly from browser
+const ERP_URL = 'https://script.google.com/macros/s/AKfycbymraoQGpi9yGe8awT6zRJU004_ptbQ2Mhwpj3j2OkOvDBiy87p84D99o0u_6j69b2I/exec';
+
+function syncToERP(user, washType) {
+  const erpWashType = washType && washType.indexOf('Interior') !== -1 ? 'შიგნიდან'
+                    : washType && washType.indexOf('Free')     !== -1 ? 'სხვა'
+                    : 'სტანდარტი';
+  fetch(ERP_URL, {
+    method:   'POST',
+    headers:  { 'Content-Type': 'text/plain;charset=utf-8' },
+    body:     JSON.stringify({
+      action:       'addLoyaltyEntry',
+      userID:       user.userID,
+      customerName: user.fullName || user.userID,
+      phone:        user.phoneNumber || '',
+      erpWashType:  erpWashType
+    }),
+    redirect: 'follow'
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (!res.success) toast('⚠️ ERP sync failed: ' + (res.message || 'unknown'), 'err', 5000);
+  })
+  .catch(err => toast('⚠️ ERP unreachable: ' + err.message, 'err', 5000));
+}
+
 function api(data) {
   return fetch(API_URL, {
     method:   'POST',
@@ -1745,10 +1771,8 @@ function executeConfirmedAction() {
       renderProfile(r.user, r.stats);
       refreshDailyStats();
 
-      // Show whether ERP sync worked
-      if (r.erpSynced === false) {
-        toast('⚠️ ERP sync failed: ' + (r.erpError || 'unknown error'), 'err', 6000);
-      }
+      // Sync directly to ERP from browser (bypasses GAS permission issues)
+      syncToERP(r.user, washType);
 
       if (type === 'monthly') {
         toast(tr('toast.vip.redeemed'), 'wow', 5000);
