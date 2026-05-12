@@ -1256,6 +1256,7 @@ function loadDash(user, stats){
   const v=document.getElementById('view-dashboard');
   v.classList.add('loading');
   showView('view-dashboard');
+  loadNewsBar();  // refresh announcement every time dashboard loads
   // Skeleton stays visible for at least 640ms for smoothness
   setTimeout(()=>{ renderDash(user, stats); v.classList.remove('loading'); }, 640);
 }
@@ -1514,14 +1515,15 @@ function doClaimReward(rewardChoice) {
    NEWS BAR — loads announcement from Admin sheet on page start
 ================================================================ */
 function loadNewsBar() {
+  const bar    = document.getElementById('news-bar');
+  const ticker = document.getElementById('news-ticker');
+  bar.style.display = 'none'; // hide while fetching
   api({ action:'getAppConfig' })
     .then(r=>{
       if (!r.announcementText) return;
-      const bar=document.getElementById('news-bar');
-      const ticker=document.getElementById('news-ticker');
       ticker.textContent = r.announcementText;
-      if (r.announcementText.length < 60) ticker.classList.add('short');
-      bar.style.display='flex';
+      ticker.classList.toggle('short', r.announcementText.length < 60);
+      bar.style.display = 'flex';
     })
     .catch(()=>{});
 }
