@@ -11,8 +11,8 @@ var LEGACY_SHEET  = "Database";
 var STREAK_MAX = 9;               // Washes needed to earn a reward choice
 
 // ── ERP Integration ──────────────────────────────────────────
-// Spreadsheet ID of the ESG Car Wash Manager ERP (Daily sheet)
-var ERP_SPREADSHEET_ID = "1ufhpPY_J366QJ1qf5wEjpvlbHVORIZX59EBwbn3NZsc";
+// Deployed URL of the ESG Car Wash Manager ERP web app
+var ERP_API_URL = "https://script.google.com/macros/s/AKfycbymraoQGpi9yGe8awT6zRJU004_ptbQ2Mhwpj3j2OkOvDBiy87p84D99o0u_6j69b2I/exec";
 
 // Users columns (0-based) — Balance + Notes added at the end
 var U = { USERID:0, FULLNAME:1, PHONE:2, TOTAL:3, CYCLE:4, STATUS:5, SINCE:6, BALANCE:7, NOTES:8 };
@@ -335,34 +335,32 @@ function logWashByManager(userID, washType) {
 }
 
 // ─── syncToERP_ ──────────────────────────────────────────────
-// Writes a row into the ERP's Daily sheet so the manager terminal
-// sees the loyalty scan in its washing list automatically.
+// Posts the wash entry to the ERP web app's doPost endpoint so
+// the manager terminal sees it in the washing list automatically.
 function syncToERP_(userID, washType, userData) {
-  var erpSS    = SpreadsheetApp.openById(ERP_SPREADSHEET_ID);
-  var erpSheet = erpSS.getSheetByName("Daily");
-  if (!erpSheet) return;
-
   // Map loyalty wash types to ERP Georgian labels
   var erpWashType = "სტანდარტი";
   if (washType && washType.indexOf("Interior") !== -1) erpWashType = "შიგნიდან";
-  else if (washType && washType.indexOf("Free")    !== -1) erpWashType = "სხვა";
+  else if (washType && washType.indexOf("Free") !== -1) erpWashType = "სხვა";
 
-  var customerName = (userData && userData.fullName) ? userData.fullName : userID;
-  var phone        = (userData && userData.phoneNumber) ? userData.phoneNumber : "";
-  var notes        = "L:" + userID + (phone ? " | T:" + phone : "");
+  var payload = {
+    action:       "addLoyaltyEntry",
+    userID:       userID,
+    customerName: (userData && userData.fullName)    ? userData.fullName    : userID,
+    phone:        (userData && userData.phoneNumber) ? userData.phoneNumber : "",
+    erpWashType:  erpWashType
+  };
 
-  // Columns: Plate, CarType, WashType, Cost, Payment, Box, Timestamp, Notes, Status
-  erpSheet.appendRow([
-    customerName,   // Plate — customer name (loyalty entry)
-    "სედანი",       // Car type default (update in ERP if needed)
-    erpWashType,    // Mapped wash type
-    0,              // Cost — loyalty wash, update in ERP if needed
-    "Pending",      // Payment status
-    "Box 1",        // Box default
-    new Date(),     // Timestamp
-    notes,          // Loyalty ID + phone
-    "Pending"       // Row status
-  ]);
+  var response = UrlFetchApp.fetch(ERP_API_URL, {
+    method:             "post",
+    contentType:        "application/json",
+    payload:            JSON.stringify(payload),
+    followRedirects:    true,
+    muteHttpExceptions: true
+  });
+
+  var result = JSON.parse(response.getContentText());
+  if (!result.success) throw new Error(result.message || "ERP rejected the entry");
 }
 
 // ─── getDailyStats ───────────────────────────────────────────
