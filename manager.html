@@ -1745,6 +1745,11 @@ function executeConfirmedAction() {
       renderProfile(r.user, r.stats);
       refreshDailyStats();
 
+      // Show whether ERP sync worked
+      if (r.erpSynced === false) {
+        toast('⚠️ ERP sync failed: ' + (r.erpError || 'unknown error'), 'err', 6000);
+      }
+
       if (type === 'monthly') {
         toast(tr('toast.vip.redeemed'), 'wow', 5000);
       } else if (r.rewardEarned) {

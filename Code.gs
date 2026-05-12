@@ -319,8 +319,14 @@ function logWashByManager(userID, washType) {
     }
     // Mirror every successful manager scan into the ERP washing list
     if (result.success) {
-      try { syncToERP_(userID, washType, result.user); }
-      catch(erpErr) { Logger.log("ERP sync skipped: " + erpErr.message); }
+      try {
+        syncToERP_(userID, washType, result.user);
+        result.erpSynced = true;
+      } catch(erpErr) {
+        Logger.log("ERP sync error: " + erpErr.message);
+        result.erpSynced = false;
+        result.erpError  = erpErr.message;
+      }
     }
     return result;
   } catch (e) {
