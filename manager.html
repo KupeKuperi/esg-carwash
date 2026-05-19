@@ -609,6 +609,44 @@ body::before {
 }
 .perm-actions { display:flex; flex-direction:column; gap:10px; width:100%; }
 
+/* ── Dashboard manual lookup card ── */
+.lookup-card { padding:18px 20px; margin-bottom:16px; }
+.lookup-label {
+  font-size:11px; font-weight:700; color:var(--text-2);
+  text-transform:uppercase; letter-spacing:.09em; margin-bottom:12px;
+}
+.lookup-row {
+  display:flex; gap:0; align-items:stretch;
+  background:rgba(15,23,42,.85);
+  border:1px solid var(--border); border-radius:12px; overflow:hidden;
+  transition:border-color .2s, box-shadow .2s;
+}
+.lookup-row:focus-within {
+  border-color:var(--mg); box-shadow:0 0 0 3px rgba(245,158,11,.1);
+}
+.lookup-prefix {
+  padding:0 12px; display:flex; align-items:center;
+  font-size:15px; font-weight:800; color:var(--mg);
+  letter-spacing:.06em; border-right:1px solid var(--border);
+  background:rgba(245,158,11,.07); white-space:nowrap; user-select:none;
+}
+.lookup-input {
+  flex:1; padding:14px 12px;
+  background:transparent; border:none; outline:none;
+  color:var(--text); font-size:18px; font-weight:700;
+  font-family:var(--font); letter-spacing:.12em;
+  text-transform:uppercase;
+  width:0; /* flex handles actual width */
+}
+.lookup-input::placeholder { color:var(--text-3); font-weight:400; letter-spacing:0; font-size:14px; }
+.lookup-btn {
+  padding:0 18px; background:linear-gradient(135deg,#d97706,#f59e0b);
+  border:none; color:#020617; font-size:18px; cursor:pointer;
+  transition:opacity .2s; font-weight:800;
+}
+.lookup-btn:hover  { opacity:.85; }
+.lookup-btn:active { opacity:.7; }
+
 /* Manual ID entry inside scanner */
 .manual-entry-row {
   display:flex; gap:8px; margin-top:4px; width:100%;
@@ -753,6 +791,28 @@ body::before {
       <button class="btn btn-mg btn-full" style="padding:18px;font-size:16px" onclick="openScanner()">
         <span style="font-size:20px">⬡</span> <span data-i18n="btn.scan">კლიენტის QR სკანირება</span>
       </button>
+    </div>
+
+    <!-- Manual ID lookup -->
+    <div class="card lookup-card">
+      <div class="lookup-label">ID-ით ძიება</div>
+      <div class="lookup-row">
+        <div class="lookup-prefix">ESG-</div>
+        <input
+          type="text"
+          id="dash-lookup-input"
+          class="lookup-input"
+          placeholder="0000"
+          maxlength="4"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="characters"
+          spellcheck="false"
+          inputmode="text"
+          oninput="this.value=this.value.replace(/[^a-zA-Z0-9]/g,'').toUpperCase()"
+        >
+        <button class="lookup-btn" onclick="dashLookup()">→</button>
+      </div>
     </div>
 
     <!-- Feed -->
@@ -1578,11 +1638,29 @@ function lookupManualId() {
   lookupUser(uid);
 }
 
-// Allow Enter key to submit manual lookup
+// Allow Enter key to submit manual lookup (scanner fallback)
 document.addEventListener('DOMContentLoaded', () => {
   const inp = document.getElementById('manual-id-input');
   if (inp) inp.addEventListener('keypress', e => { if (e.key === 'Enter') lookupManualId(); });
+
+  // Dashboard manual lookup — Enter key
+  const di = document.getElementById('dash-lookup-input');
+  if (di) di.addEventListener('keypress', e => { if (e.key === 'Enter') dashLookup(); });
 });
+
+/* ── Dashboard manual ID lookup ─────────────────────────────── */
+function dashLookup() {
+  const inp = document.getElementById('dash-lookup-input');
+  const suffix = inp ? inp.value.trim().toUpperCase() : '';
+  if (!suffix) { toast('შეიყვანეთ ID ნომერი', 'err', 2500); return; }
+  const uid = 'ESG-' + suffix;
+  inp.value = '';
+  inp.blur();
+  // Go to scanner view to show the profile (reuses existing lookup flow)
+  showView('view-scanner');
+  setScanStatus('found', '🔍 Looking up ' + uid + '…');
+  lookupUser(uid);
+}
 
 async function cancelScan2() { /* alias kept for safety */ await cancelScan(); }
 
