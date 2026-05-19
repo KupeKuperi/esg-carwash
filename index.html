@@ -59,8 +59,6 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
   overscroll-behavior: none;
-  /* Fill the iOS status-bar gap in standalone (homescreen) mode */
-  padding-top: env(safe-area-inset-top);
 }
 
 /* Momentum scrolling on all scrollable containers */
@@ -232,12 +230,13 @@ body::before {
 ================================================================ */
 .dash-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 22px;
-  height: 64px;
-  background: rgba(2,6,23,.92);
+  /* Top padding fills the status-bar safe zone with the header background */
+  padding: env(safe-area-inset-top, 0px) 22px 0;
+  height: calc(64px + env(safe-area-inset-top, 0px));
+  background: rgba(2,6,23,.98);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
-  position: relative; z-index: 10;
+  position: sticky; top: 0; z-index: 200;
 }
 .header-logo {
   width: auto; height: 40px; max-width: 110px;
