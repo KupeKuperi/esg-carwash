@@ -1272,6 +1272,7 @@ function doLogin(){
       L.log('login result',r);
       if(!r.success){ showErr('l-err', tr('err.'+r.code?.toLowerCase()) || tr('err.generic')); return; }
       if(!r.found)  { showErr('l-err', tr('err.notfound')); return; }
+      localStorage.setItem('esg_saved_phone', raw);
       App.set(r.user, r.stats);
       loadDash(r.user, r.stats);
     })
@@ -1292,6 +1293,7 @@ function doRegister(){
       setBtnLoading('btn-reg',false);
       L.log('register result',r);
       if(!r.success){ showErr('r-err', tr('err.'+r.code?.toLowerCase()) || tr('err.generic')); return; }
+      localStorage.setItem('esg_saved_phone', raw);
       toast(tr('toast.welcome'),'ok',4000);
       App.set(r.user, r.stats);
       loadDash(r.user, r.stats);
@@ -1300,6 +1302,7 @@ function doRegister(){
 }
 
 function doLogout(){
+  localStorage.removeItem('esg_saved_phone');
   App.clear();
   ['l-phone','r-name','r-phone'].forEach(id=>{ document.getElementById(id).value=''; });
   document.getElementById('admin-panel').classList.remove('show');
@@ -1678,12 +1681,49 @@ function exitScanMode() {
 }
 
 /* ================================================================
+   AUTO-LOGIN — re-authenticate saved customer on every app open
+================================================================ */
+function autoLogin(savedPhone) {
+  // Show dashboard skeleton immediately — feels instant
+  const v = document.getElementById('view-dashboard');
+  v.classList.add('loading');
+  showView('view-dashboard');
+  loadNewsBar();
+
+  api({ action:'fetchUser', phone: savedPhone })
+    .then(r => {
+      if (!r.success || !r.found) {
+        // Account gone or network issue — return to welcome
+        localStorage.removeItem('esg_saved_phone');
+        v.classList.remove('loading');
+        showView('view-welcome');
+        return;
+      }
+      App.set(r.user, r.stats);
+      setTimeout(() => { renderDash(r.user, r.stats); v.classList.remove('loading'); }, 400);
+    })
+    .catch(() => {
+      // Network error — go to welcome but keep saved phone for next try
+      v.classList.remove('loading');
+      showView('view-welcome');
+    });
+}
+
+/* ================================================================
    INIT
 ================================================================ */
 document.addEventListener('DOMContentLoaded', ()=>{
   L.log('ESG App initialised');
   setLanguage(currentLang);
-  loadNewsBar();                    // fetch announcement from Admin sheet
+
+  // Auto-login if a returning customer is remembered
+  const savedPhone = localStorage.getItem('esg_saved_phone');
+  if (savedPhone) {
+    autoLogin(savedPhone);
+  } else {
+    loadNewsBar();  // only needed on dashboard; skip if auto-logging in (called there)
+  }
+
   api({action:'setup'})
     .then(r=>L.log('setup',r))
     .catch(e=>L.warn('setup err — check API_URL is set correctly',e));
