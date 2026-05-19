@@ -235,8 +235,10 @@ body::before {
   background: rgba(2,6,23,.92);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 100;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
 }
+/* Push dashboard content below the fixed header */
+#view-dashboard { padding-top: 70px; }
 .header-logo {
   width: 100px; height: auto;
   filter: drop-shadow(0 0 8px var(--accent-glow));
