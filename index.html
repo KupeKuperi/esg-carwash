@@ -231,16 +231,18 @@ body::before {
 ================================================================ */
 .dash-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 22px;
+  padding: 0 22px;
+  height: 64px;
   background: rgba(2,6,23,.92);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
   position: fixed; top: 0; left: 0; right: 0; z-index: 200;
 }
-/* Push dashboard content below the fixed header */
-#view-dashboard { padding-top: 70px; }
+/* padding-top matches header height exactly */
+#view-dashboard { padding-top: 64px; }
 .header-logo {
-  width: 100px; height: auto;
+  width: auto; height: 40px; max-width: 110px;
+  object-fit: contain;
   filter: drop-shadow(0 0 8px var(--accent-glow));
   cursor: pointer; user-select: none; -webkit-user-select: none;
 }
