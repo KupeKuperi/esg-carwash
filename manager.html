@@ -1427,63 +1427,8 @@ async function startQrScanner() {
     Mgr.scannerRunning = true;
     hidePermissionHelper();
     setScanStatus('looking', '📷  Ready — point at member QR code');
-    // Apply anti-glare filter after camera stream is live
-    setTimeout(applyAntiGlare, 800);
   } catch (startErr) {
     handleCameraError(startErr);
-  }
-}
-
-/* ── Anti-glare: handles bright phone screens ──────────────────
-   1. CSS filter on the video element (dims the preview)
-   2. Hardware-level exposure/contrast via applyConstraints()
-      (works on Android Chrome; gracefully ignored on iOS/unsupported) */
-async function applyAntiGlare() {
-  const video = document.querySelector('#qr-reader video');
-  if (!video) return;
-
-  // 1. Visual CSS filter — dims the viewfinder and boosts contrast
-  video.style.filter = 'brightness(70%) contrast(140%) grayscale(100%)';
-
-  // 2. Hardware-level sensor constraints on the active camera track
-  try {
-    const stream = video.srcObject;
-    if (!stream) return;
-    const track = stream.getVideoTracks && stream.getVideoTracks()[0];
-    if (!track || !track.applyConstraints) return;
-
-    const caps = track.getCapabilities ? track.getCapabilities() : {};
-    const adv  = {};
-
-    // Reduce exposure compensation → darker intake from bright screens
-    if (caps.exposureCompensation) {
-      const r = caps.exposureCompensation;
-      adv.exposureCompensation = r.min + (r.max - r.min) * 0.10;
-    }
-    if (caps.exposureMode && caps.exposureMode.includes('manual')) {
-      adv.exposureMode = 'manual';
-    }
-    // Boost hardware contrast so black QR squares stand out
-    if (caps.contrast) {
-      const r = caps.contrast;
-      adv.contrast = r.min + (r.max - r.min) * 0.85;
-    }
-    // Lower hardware brightness
-    if (caps.brightness) {
-      const r = caps.brightness;
-      adv.brightness = r.min + (r.max - r.min) * 0.20;
-    }
-    // Desaturate — grayscale helps QR detection on glowing screens
-    if (caps.saturation) {
-      adv.saturation = caps.saturation.min;
-    }
-
-    if (Object.keys(adv).length > 0) {
-      await track.applyConstraints({ advanced: [adv] });
-      L.log('Anti-glare hardware constraints applied', adv);
-    }
-  } catch(e) {
-    L.warn('Hardware anti-glare not supported on this device:', e.message);
   }
 }
 
