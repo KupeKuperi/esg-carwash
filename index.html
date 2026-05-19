@@ -379,12 +379,28 @@ body::before {
 .streak-count { font-weight: 700; color: #34d399; font-size: 15px; }
 
 /* ── QR Card ── */
-.qr-card { padding: 28px 24px; text-align: center; margin-bottom: 16px; }
-.qr-wrap { width: 170px; height: 170px; margin: 0 auto 20px; border-radius: 14px; overflow: hidden; background: #fff; padding: 8px; }
+/* White background tricks the phone's ambient light sensor into
+   throttling backlight — reduces overexposure on the manager camera */
+.qr-card {
+  padding: 28px 24px; text-align: center; margin-bottom: 16px;
+  background: #ffffff !important;
+  border: none !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+/* Dark container holds the inverted QR — phone emits far less light */
+.qr-wrap {
+  width: 180px; height: 180px; margin: 0 auto 20px;
+  border-radius: 16px; overflow: hidden;
+  background: #000000; padding: 12px;
+  box-shadow: 0 0 0 6px #000000, 0 8px 32px rgba(0,0,0,0.4);
+}
 .qr-img  { width: 100%; height: 100%; object-fit: contain; display: block; }
-.qr-uid  { font-size: 20px; font-weight: 900; color: var(--accent); letter-spacing: .08em; }
-.qr-divider { width: 52px; height: 2px; background: linear-gradient(90deg,transparent,var(--accent),transparent); margin: 14px auto; }
-.qr-since { font-size: 13px; color: var(--text-2); margin-bottom: 14px; }
+/* Dark text on white card background */
+.qr-uid  { font-size: 20px; font-weight: 900; color: #020617; letter-spacing: .08em; }
+.qr-divider { width: 52px; height: 2px; background: linear-gradient(90deg,transparent,#008CCF,transparent); margin: 14px auto; }
+.qr-since { font-size: 13px; color: #475569; margin-bottom: 14px; }
+/* Section label on white */
+.qr-card .section-label { color: #475569; }
 
 .status-pill {
   display: inline-flex; align-items: center; gap: 7px;
@@ -1303,8 +1319,11 @@ function renderDash(u, s){
   buildStreakRow(stats.monthlyStreak || 0, stats.monthlyRewardRedeemed || false);
 
   // ── QR Card ───────────────────────────────────────────────
+  // Inverted QR: white modules on black → phone emits far less light,
+  // black quiet zone surrounds it. Combined with white card background
+  // the ambient sensor auto-dims the screen backlight.
   document.getElementById('qr-img').src =
-    'https://api.qrserver.com/v1/create-qr-code/?size=250x250&bgcolor=ffffff&color=020617&margin=4&data='
+    'https://api.qrserver.com/v1/create-qr-code/?size=300x300&bgcolor=000000&color=ffffff&margin=0&data='
     + encodeURIComponent(u.userID);
   document.getElementById('qr-uid').textContent = u.userID;
 
