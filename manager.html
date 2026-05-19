@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>ESG — Manager Portal</title>
 <meta name="apple-mobile-web-app-capable"          content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -48,6 +48,7 @@ body {
   min-height:100vh; background:var(--bg); color:var(--text);
   font-family:var(--font); -webkit-font-smoothing:antialiased;
   overflow-x:hidden; overscroll-behavior:none;
+  padding-top: env(safe-area-inset-top);
 }
 .body-wrap,.scanner-body,.profile-body { -webkit-overflow-scrolling:touch; }
 .btn        { min-height:50px; }

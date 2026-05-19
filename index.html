@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>ESG Car Wash — Loyalty</title>
 <!-- ── PWA / Home-screen meta ── -->
 <meta name="apple-mobile-web-app-capable"            content="yes">
@@ -58,8 +58,9 @@ body {
   font-family: var(--font);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
-  /* prevent elastic bounce-scroll on iOS */
   overscroll-behavior: none;
+  /* Fill the iOS status-bar gap in standalone (homescreen) mode */
+  padding-top: env(safe-area-inset-top);
 }
 
 /* Momentum scrolling on all scrollable containers */
