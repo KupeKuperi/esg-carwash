@@ -386,6 +386,50 @@ body::before {
 .qr-divider { width: 52px; height: 2px; background: linear-gradient(90deg,transparent,var(--accent),transparent); margin: 14px auto; }
 .qr-since { font-size: 13px; color: var(--text-2); margin-bottom: 14px; }
 
+/* ── Scanner Mode overlay ── */
+/* 95% of screen = pure black → camera auto-exposure drops dramatically
+   QR uses dim gray (#a0a0a0) on near-black (#080808) = scannable but
+   emits ~10% of the light of a normal white QR screen              */
+#scan-overlay {
+  display: none; position: fixed; inset: 0; z-index: 99999;
+  background: #000000;
+  flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; user-select: none; -webkit-user-select: none;
+}
+#scan-overlay.active { display: flex; }
+.scan-ov-qr-wrap {
+  width: 220px; height: 220px;
+  background: #080808; border-radius: 16px;
+  padding: 12px; margin-bottom: 28px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.06);
+}
+.scan-ov-qr-wrap img {
+  width: 100%; height: 100%; object-fit: contain; display: block;
+}
+.scan-ov-id {
+  font-size: 17px; font-weight: 800; color: #555555;
+  letter-spacing: .1em; margin-bottom: 10px; font-family: var(--font);
+}
+.scan-ov-hint {
+  font-size: 11px; color: #2a2a2a;
+  text-align: center; line-height: 1.7; font-family: var(--font);
+}
+.scan-ov-exit {
+  margin-top: 28px; padding: 10px 28px; border-radius: 100px;
+  border: 1px solid #222222; background: transparent;
+  color: #333333; font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: var(--font);
+}
+.btn-scan-mode {
+  width: 100%; margin-top: 14px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-2); font-size: 13px; font-weight: 600;
+  padding: 11px; border-radius: 12px; cursor: pointer;
+  font-family: var(--font); transition: border-color .2s, color .2s;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.btn-scan-mode:hover { border-color: var(--accent); color: var(--accent); }
+
 .status-pill {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 6px 16px; border-radius: 100px;
@@ -738,6 +782,19 @@ body::before {
   </div>
 </div>
 
+<!-- ── Scanner Mode: full-black overlay so camera auto-exposes to dark scene ── -->
+<div id="scan-overlay" onclick="exitScanMode()">
+  <div class="scan-ov-qr-wrap">
+    <img id="scan-ov-img" src="" alt="QR">
+  </div>
+  <div class="scan-ov-id"  id="scan-ov-id"></div>
+  <div class="scan-ov-hint">
+    კამერასთან 15–20 სმ მანძილზე მიიტანეთ<br>
+    <span style="color:#1e1e1e">Tap anywhere to exit</span>
+  </div>
+  <button class="scan-ov-exit" onclick="exitScanMode()">✕ &nbsp;დახურვა</button>
+</div>
+
 <div id="app">
 
 <div id="toasts"></div>
@@ -950,6 +1007,9 @@ body::before {
         <span class="status-pip"></span>
         <span id="status-txt">Active Member</span>
       </span>
+      <button class="btn-scan-mode" onclick="enterScanMode()">
+        📷 &nbsp;სკანირებისთვის ჩვენება
+      </button>
     </div>
 
     <!-- Recent Activity / Wash History -->
@@ -1569,6 +1629,42 @@ function dismissBanner() {
 function openManagerPortal() {
   const base = window.location.href.replace(/\/[^/]*$/, '/');
   window.open(base + 'manager.html', '_blank');
+}
+
+/* ================================================================
+   SCANNER MODE
+   Full-black overlay so the camera's auto-exposure algorithm sees a
+   dark scene and correctly exposes for the dim QR, instead of blinding
+   itself on a bright UI. QR uses #a0a0a0 on #080808 — enough contrast
+   for any scanner but emits ~10% of the light of a white screen.
+================================================================ */
+function enterScanMode() {
+  const user = App.user;
+  if (!user) return;
+
+  // Dim gray modules on near-black background — scannable but low emission
+  const dimUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300'
+    + '&bgcolor=080808&color=a0a0a0&margin=1&data='
+    + encodeURIComponent(user.userID);
+
+  document.getElementById('scan-ov-img').src = dimUrl;
+  document.getElementById('scan-ov-id').textContent  = user.userID;
+  document.getElementById('scan-overlay').classList.add('active');
+
+  // Fullscreen removes browser chrome — less total screen area glowing
+  try {
+    const el = document.documentElement;
+    if      (el.requestFullscreen)       el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  } catch(e) {}
+}
+
+function exitScanMode() {
+  document.getElementById('scan-overlay').classList.remove('active');
+  try {
+    if      (document.exitFullscreen)       document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  } catch(e) {}
 }
 
 /* ================================================================
