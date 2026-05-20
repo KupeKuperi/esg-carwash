@@ -393,7 +393,9 @@ function logWash_(uid, requestedType) {
     var washType     = requestedType || "Standard Wash";
     var isRedemption = (status === "Reward Available");
 
-    total++;
+    // VIP Wash counts as 2 toward the cycle
+    var washIncrement = (washType === "VIP Wash") ? 2 : 1;
+    total += washIncrement;
 
     if (isRedemption) {
       washType     = "Free Wash (Reward)";
@@ -401,14 +403,14 @@ function logWash_(uid, requestedType) {
       status       = "Active";
       message      = "Free wash redeemed! New cycle started.";
     } else {
-      cycle++;
+      cycle = Math.min(cycle + washIncrement, STREAK_MAX);
       if (cycle >= STREAK_MAX) {
-        cycle        = STREAK_MAX;
         status       = "Reward Available";
         rewardEarned = true;
         message      = "Streak complete! Choose your reward.";
       } else {
-        message = "Wash recorded. " + (STREAK_MAX - cycle) + " more to reward.";
+        message = (washType === "VIP Wash" ? "VIP Wash recorded (+2). " : "Wash recorded. ")
+                + (STREAK_MAX - cycle) + " more to reward.";
       }
     }
 

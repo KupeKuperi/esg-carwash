@@ -482,6 +482,19 @@ body::before {
 .vip-action:not(:disabled):hover { border-color:var(--ok); background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(16,185,129,.1)); transform:translateY(-1px); }
 .vip-action .action-icon { background:var(--ok-dim); }
 
+.vip-wash-action {
+  background:linear-gradient(135deg,rgba(251,191,36,.15),rgba(245,158,11,.07));
+  border:1px solid rgba(251,191,36,.40); color:var(--text);
+}
+.vip-wash-action:not(:disabled):hover { border-color:#fbbf24; background:linear-gradient(135deg,rgba(251,191,36,.26),rgba(245,158,11,.14)); transform:translateY(-1px); }
+.vip-wash-action .action-icon { background:rgba(251,191,36,.15); }
+.vip-wash-badge {
+  display:inline-block; font-size:10px; font-weight:800;
+  background:#fbbf24; color:#020617; padding:2px 7px;
+  border-radius:100px; margin-left:6px; vertical-align:middle;
+  letter-spacing:.04em;
+}
+
 .action-locked-reason {
   text-align:center; font-size:12px; color:var(--text-3); margin-top:-4px;
 }
@@ -991,6 +1004,14 @@ body::before {
         </div>
       </button>
 
+      <button class="btn-action vip-wash-action" id="btn-vip-wash" onclick="promptAction('vip_wash')">
+        <div class="action-icon">⭐</div>
+        <div class="action-btn-inner">
+          <div class="action-btn-title">VIP Wash <span class="vip-wash-badge">+2</span></div>
+          <div class="action-btn-sub" id="btn-vip-wash-sub">Counts as 2 washes toward free wash</div>
+        </div>
+      </button>
+
       <button class="btn-action vip-action" id="btn-vip" onclick="promptAction('monthly')" disabled>
         <div class="action-icon">👑</div>
         <div class="action-btn-inner">
@@ -1024,6 +1045,7 @@ const ERP_URL = 'https://script.google.com/macros/s/AKfycbymraoQGpi9yGe8awT6zRJU
 
 function syncToERP(user, washType) {
   const erpWashType = washType && washType.indexOf('Interior') !== -1 ? 'შიგნიდან'
+                    : washType === 'VIP Wash'                         ? 'VIP'
                     : washType && washType.indexOf('Free')     !== -1 ? 'სხვა'
                     : 'სტანდარტი';
   fetch(ERP_URL, {
@@ -1810,6 +1832,11 @@ function promptAction(type) {
       : 'Record a standard wash for '+u.fullName+'?';
     document.getElementById('confirm-ok-btn').className='btn btn-mg';
     document.getElementById('confirm-ok-btn').textContent='Confirm';
+  } else if (type === 'vip_wash') {
+    document.getElementById('confirm-title').textContent = '⭐ VIP Wash (+2)';
+    document.getElementById('confirm-sub').textContent   = 'Record a VIP wash for '+u.fullName+'? This counts as 2 washes toward their free wash.';
+    document.getElementById('confirm-ok-btn').className='btn btn-mg';
+    document.getElementById('confirm-ok-btn').textContent='Confirm VIP +2';
   } else {
     document.getElementById('confirm-title').textContent = 'Redeem Interior Cleaning';
     document.getElementById('confirm-sub').textContent   = u.fullName+' has completed their monthly streak of 4 washes. Redeem their free VIP Interior Cleaning?';
@@ -1832,18 +1859,20 @@ function executeConfirmedAction() {
   if (!type || !uid) return;
 
   // Disable buttons while processing
-  document.getElementById('btn-std-wash').disabled = true;
-  document.getElementById('btn-vip').disabled       = true;
+  document.getElementById('btn-std-wash').disabled  = true;
+  document.getElementById('btn-vip-wash').disabled  = true;
+  document.getElementById('btn-vip').disabled        = true;
 
-  const washType = type === 'monthly'
-    ? 'Interior Cleaning (Monthly Reward)'
-    : 'Standard Wash';
+  const washType = type === 'monthly'   ? 'Interior Cleaning (Monthly Reward)'
+                 : type === 'vip_wash'  ? 'VIP Wash'
+                 : 'Standard Wash';
 
   L.log('executing', washType, uid);
 
   api({action:'logWashByManager', userID:uid, washType:washType})
     .then(r=>{
       document.getElementById('btn-std-wash').disabled = false;
+      document.getElementById('btn-vip-wash').disabled  = false;
       L.log('action result', r);
 
       if (!r.success) {
@@ -1874,7 +1903,8 @@ function executeConfirmedAction() {
     })
     .catch(e=>{
       document.getElementById('btn-std-wash').disabled = false;
-      document.getElementById('btn-vip').disabled      = false;
+      document.getElementById('btn-vip-wash').disabled  = false;
+      document.getElementById('btn-vip').disabled       = false;
       playError();
       L.error('action err', e);
       toast('Connection error. Please try again.', 'err', 4000);
