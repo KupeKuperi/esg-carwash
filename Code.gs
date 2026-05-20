@@ -188,11 +188,9 @@ function getUserStats(userID) {
       return { lifetimeTotal:0, monthlyStreak:0, monthlyRewardRedeemed:false, history:[] };
     }
 
-    var data     = logSheet.getDataRange().getValues();
-    var now      = new Date();
-    var curMonth = now.getMonth();
-    var curYear  = now.getFullYear();
-    var tz       = Session.getScriptTimeZone();
+    var data = logSheet.getDataRange().getValues();
+    var now  = new Date();
+    var tz   = Session.getScriptTimeZone();
 
     var userRows = [];
     for (var i = 1; i < data.length; i++) {
@@ -201,19 +199,62 @@ function getUserStats(userID) {
 
     userRows.sort(function(a,b){ return new Date(b[W.TIMESTAMP]) - new Date(a[W.TIMESTAMP]); });
 
-    var lifetimeTotal         = userRows.length;
-    var monthlyStreak         = 0;
-    var monthlyRewardRedeemed = false;
+    var lifetimeTotal = userRows.length;
 
+    // ── Weekly streak: count consecutive weeks with ≥1 wash ──────
+    // A "week" starts on Monday. The streak resets if any full week
+    // is missed. After redeeming Interior Cleaning the streak resets.
+
+    var ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+    // Helper: timestamp of the Monday that starts the week containing d
+    function weekStartMs(d) {
+      var day = d.getDay(); // 0=Sun
+      var ws  = new Date(d);
+      ws.setHours(0, 0, 0, 0);
+      ws.setDate(ws.getDate() - (day === 0 ? 6 : day - 1));
+      return ws.getTime();
+    }
+
+    var currWeekMs = weekStartMs(now);
+
+    // Find the most recent Interior Cleaning redemption (= streak reset)
+    var lastRedemptionMs = 0;
     for (var j = 0; j < userRows.length; j++) {
-      var ts = new Date(userRows[j][W.TIMESTAMP]);
-      if (ts.getMonth() === curMonth && ts.getFullYear() === curYear) {
-        monthlyStreak++;
-        if (String(userRows[j][W.WASHTYPE]) === "Interior Cleaning (Monthly Reward)") {
-          monthlyRewardRedeemed = true;
-        }
+      if (String(userRows[j][W.WASHTYPE]).indexOf("Interior Cleaning") !== -1) {
+        var rts = new Date(userRows[j][W.TIMESTAMP]).getTime();
+        if (rts > lastRedemptionMs) lastRedemptionMs = rts;
       }
     }
+
+    // Collect unique weeks that have ≥1 non-redemption wash AFTER last redemption
+    var weeksWithWash = {};
+    for (var k = 0; k < userRows.length; k++) {
+      var rowType = String(userRows[k][W.WASHTYPE]);
+      if (rowType.indexOf("Interior Cleaning") !== -1) continue;
+      var rowTs = new Date(userRows[k][W.TIMESTAMP]);
+      if (rowTs.getTime() <= lastRedemptionMs) continue;
+      weeksWithWash[weekStartMs(rowTs)] = true;
+    }
+
+    // Count consecutive weeks backward from current (or last) week
+    var startWeek = weeksWithWash[currWeekMs] ? currWeekMs : currWeekMs - ONE_WEEK_MS;
+    var weeklyStreak = 0;
+    for (var w = 0; w < 5; w++) {
+      if (weeksWithWash[startWeek - w * ONE_WEEK_MS]) {
+        weeklyStreak++;
+      } else {
+        break;
+      }
+    }
+    weeklyStreak = Math.min(weeklyStreak, 4);
+
+    // Reward redeemed: redemption happened recently AND new streak not yet at 4
+    var monthlyRewardRedeemed = (lastRedemptionMs > 0 &&
+      lastRedemptionMs >= currWeekMs - 4 * ONE_WEEK_MS &&
+      weeklyStreak < 4);
+
+    var monthlyStreak = weeklyStreak; // keep same field name for API compatibility
 
     var history = userRows.slice(0, 10).map(function(row) {
       var fmt   = "";
@@ -431,9 +472,9 @@ function logWash_(uid, requestedType) {
 function redeemMonthlyReward_(uid) {
   var stats = getUserStats(uid);
   if (!stats || stats.monthlyStreak < 4)
-    return { success:false, code:"STREAK_LOW", message:"Monthly streak requirement not met (" + (stats ? stats.monthlyStreak : 0) + "/4)." };
+    return { success:false, code:"STREAK_LOW", message:"Weekly streak requirement not met (" + (stats ? stats.monthlyStreak : 0) + "/4 weeks)." };
   if (stats.monthlyRewardRedeemed)
-    return { success:false, message:"Monthly Interior Cleaning already redeemed this month." };
+    return { success:false, message:"Weekly streak reward already redeemed. Build a new 4-week streak to earn again." };
 
   var ss    = SpreadsheetApp.getActiveSpreadsheet();
   var wlog  = ss.getSheetByName(WASHLOG_SHEET);
