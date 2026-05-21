@@ -1869,7 +1869,8 @@ function executeConfirmedAction() {
 
   L.log('executing', washType, uid);
 
-  api({action:'logWashByManager', userID:uid, washType:washType})
+  const washCount = (type === 'vip_wash') ? 2 : 1;
+  api({action:'logWashByManager', userID:uid, washType:washType, washCount:washCount})
     .then(r=>{
       document.getElementById('btn-std-wash').disabled = false;
       document.getElementById('btn-vip-wash').disabled  = false;

@@ -68,7 +68,7 @@ function handleRequest_(d) {
       case "fetchUser":       return jsonOut_(checkUser(String(d.phone || "")));
       case "registerUser":    return jsonOut_(registerUser({ fullName:d.fullName, phone:d.phone }));
       case "addWash":         return jsonOut_(logWash_(d.userID, "Standard Wash"));
-      case "logWashByManager":return jsonOut_(logWashByManager(d.userID, d.washType));
+      case "logWashByManager":return jsonOut_(logWashByManager(d.userID, d.washType, d.washCount));
       case "getUserByID":     return jsonOut_(getUserByID(String(d.userID || d.id || "")));
       case "getDailyStats":   return jsonOut_(getDailyStats());
       case "verifyPin":       return jsonOut_(verifyManagerPin(String(d.pin || "")));
@@ -350,13 +350,13 @@ function incrementWash(uid) {
 
 // ─── logWashByManager ────────────────────────────────────────
 //  washType: "Standard Wash" | "Interior Cleaning (Monthly Reward)"
-function logWashByManager(userID, washType) {
+function logWashByManager(userID, washType, washCount) {
   try {
     var result;
     if (washType === "Interior Cleaning (Monthly Reward)") {
       result = redeemMonthlyReward_(userID);
     } else {
-      result = logWash_(userID, washType);
+      result = logWash_(userID, washType, washCount);
     }
     return result;
   } catch (e) {
@@ -414,7 +414,7 @@ function getDailyStats() {
 }
 
 // ─── Private: core wash logic ─────────────────────────────────
-function logWash_(uid, requestedType) {
+function logWash_(uid, requestedType, requestedCount) {
   var ss    = SpreadsheetApp.getActiveSpreadsheet();
   var users = ss.getSheetByName(USERS_SHEET);
   var wlog  = ss.getSheetByName(WASHLOG_SHEET);
@@ -434,8 +434,8 @@ function logWash_(uid, requestedType) {
     var washType     = requestedType || "Standard Wash";
     var isRedemption = (status === "Reward Available");
 
-    // VIP Wash counts as 2 toward the cycle
-    var washIncrement = (washType === "VIP Wash") ? 2 : 1;
+    // washCount sent directly from manager — no string matching needed
+    var washIncrement = (parseInt(requestedCount) >= 2) ? 2 : 1;
     total += washIncrement;
 
     if (isRedemption) {
